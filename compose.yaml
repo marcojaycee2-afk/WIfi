@@ -1,0 +1,32 @@
+services:
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://napbox:napbox-local@db:5432/napbox
+      HOST: 0.0.0.0
+      MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
+      PORT: 3000
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: napbox
+      POSTGRES_USER: napbox
+      POSTGRES_PASSWORD: napbox-local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U napbox -d napbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

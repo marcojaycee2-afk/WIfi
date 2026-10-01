@@ -1,0 +1,2770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>ISP Manager</title>
+
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css"/>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>
+
+<style>
+:root{
+  --bg:#0b1220;
+  --bg-2:#0f172a;
+  --surface:#141d31;
+  --surface-2:#1a2438;
+  --surface-3:#22304a;
+  --ink:#e8edf7;
+  --ink-2:#c5d0e4;
+  --muted:#8896b0;
+  --line:#26324a;
+  --line-2:#334560;
+  --accent:#3b82f6;
+  --accent-hover:#2563eb;
+  --accent-soft:#1e3a8a;
+  --green:#22c55e;
+  --green-soft:#14532d;
+  --amber:#f59e0b;
+  --amber-soft:#78350f;
+  --orange:#f97316;
+  --orange-soft:#7c2d12;
+  --red:#ef4444;
+  --red-soft:#7f1d1d;
+  --blue-soft:#1e3a8a;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.15);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg); color:var(--ink); font-size:14px; line-height:1.45;
+  padding-bottom:env(safe-area-inset-bottom);
+  min-height:100vh;
+}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em}
+h2{font-size:17px}
+h3{font-size:14px}
+
+.topbar{
+  position:sticky;top:0;z-index:60;background:var(--bg-2);color:#fff;
+  display:flex;align-items:center;gap:10px;padding:12px 14px;
+  padding-top:calc(12px + env(safe-area-inset-top));
+  border-bottom:1px solid var(--line);
+}
+.brand{font-weight:700;font-size:15px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{display:block;font-weight:400;font-size:11px;opacity:.6}
+.save-status{font-size:11px;color:var(--muted);white-space:nowrap}
+.save-status[data-state="saving"]{color:var(--amber)}
+.save-status[data-state="warning"]{color:var(--amber)}
+.save-status[data-state="error"]{color:#fca5a5}
+.topbar .btn{background:rgba(255,255,255,.08);border-color:transparent;color:var(--ink);font-size:12px;padding:7px 11px}
+.topbar .btn:hover{background:rgba(255,255,255,.15)}
+
+.tabs{
+  position:sticky;top:calc(57px + env(safe-area-inset-top));z-index:55;
+  display:flex;gap:8px;overflow-x:auto;padding:10px 12px;
+  background:var(--bg);border-bottom:1px solid var(--line);
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--muted);
+  padding:7px 13px;border-radius:999px;font-size:13px;font-weight:550;cursor:pointer;
+  white-space:nowrap;transition:.15s;
+}
+.tab:hover{border-color:var(--line-2);color:var(--ink-2)}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+main{padding:14px;max-width:1180px;margin:0 auto}
+.page-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.page-head h1{font-size:20px;flex:1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.card-head h2{flex:1}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.tiny{font-size:11px}
+.right{text-align:right}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--ink);
+  padding:8px 14px;border-radius:10px;font-size:13px;font-weight:550;
+  cursor:pointer;transition:.15s;font-family:inherit;
+}
+.btn:hover{background:var(--surface-3);border-color:var(--line-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-hover)}
+.btn.danger{background:transparent;border-color:#7f1d1d;color:#fca5a5}
+.btn.danger:hover{background:#450a0a}
+.btn.sm{padding:5px 9px;font-size:12px;border-radius:8px}
+.btn.block{width:100%}
+
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 14px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:max-content}
+th{
+  text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--muted);font-weight:650;padding:8px 10px;border-bottom:2px solid var(--line);
+  white-space:nowrap;background:var(--surface);position:sticky;top:0;
+}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap;color:var(--ink-2)}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+tbody tr:last-child td{border-bottom:none}
+td.wrap,th.wrap{white-space:normal;min-width:140px}
+td strong{color:var(--ink)}
+.row-actions{display:flex;gap:6px}
+
+.badge{
+  display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:650;
+  white-space:nowrap;line-height:1.6;
+}
+.b-green{background:var(--green-soft);color:#86efac}
+.b-amber{background:var(--amber-soft);color:#fcd34d}
+.b-orange{background:var(--orange-soft);color:#fdba74}
+.b-red{background:var(--red-soft);color:#fca5a5}
+.b-gray{background:var(--surface-3);color:var(--ink-2)}
+.b-blue{background:var(--blue-soft);color:#93c5fd}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px}
+.kpi .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:650}
+.kpi .val{font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.02em;color:var(--ink)}
+.kpi .sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+.bar{height:8px;background:var(--surface-3);border-radius:999px;overflow:hidden;margin-top:6px}
+.bar>span{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .4s}
+.bar.ok>span{background:var(--green)}
+.bar.warn>span{background:var(--amber)}
+.bar.full>span{background:var(--red)}
+
+.ports{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:7px;margin-top:10px}
+.port{
+  border:1px solid var(--line);border-radius:9px;padding:7px 4px;text-align:center;
+  font-size:10px;font-weight:600;background:var(--surface-2);cursor:pointer;
+}
+.port .n{display:block;font-size:13px;font-weight:700;margin-bottom:2px}
+.port.used{background:var(--blue-soft);border-color:#1e40af;color:#93c5fd}
+.port.free{background:var(--surface-3);color:var(--muted)}
+.port.faulty{background:var(--red-soft);border-color:#991b1b;color:#fca5a5}
+.port.reserved{background:var(--amber-soft);border-color:#92400e;color:#fcd34d}
+
+.field{display:block;margin-bottom:11px}
+.field>span{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.tag-editor{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:44px;padding:5px 7px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.tag-editor:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
+.tag-chip{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:4px 7px 4px 9px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface-3);color:var(--ink);font-size:12px}
+.tag-chip span{overflow-wrap:anywhere}
+.tag-remove{border:0;background:transparent;color:var(--muted);font:inherit;font-size:16px;line-height:1;cursor:pointer;padding:0 2px}
+.tag-remove:hover{color:#fca5a5}
+.tag-editor input{flex:1 1 110px;width:auto;min-width:100px;padding:6px;border:0;background:transparent;font-size:14px;box-shadow:none}
+.tag-editor input:focus{border:0;box-shadow:none}
+.tag-add{flex:0 0 32px;width:32px;height:32px;padding:0;border-radius:8px}
+input,select,textarea{
+  width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;
+  font-size:15px;font-family:inherit;background:var(--surface-2);color:var(--ink);outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
+textarea{resize:vertical}
+input[type=search]{font-size:14px}
+input[type=color]{padding:3px;height:42px;cursor:pointer}
+select option{background:var(--surface-2);color:var(--ink)}
+
+.backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;
+  display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px);
+}
+.backdrop.open{display:flex}
+.modal{
+  background:var(--surface);width:100%;max-width:520px;max-height:92vh;overflow-y:auto;
+  border-radius:18px 18px 0 0;padding:18px;border:1px solid var(--line);
+  padding-bottom:calc(18px + env(safe-area-inset-bottom));
+  animation:up .22s ease-out;
+}
+@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+@media(min-width:640px){
+  .backdrop{align-items:center}
+  .modal{border-radius:18px;max-height:88vh}
+}
+.modal-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.modal-head h2{flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.modal-actions{display:flex;gap:10px;margin-top:18px}
+.modal-actions .btn{flex:1}
+
+#toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);
+  background:var(--surface-3);color:var(--ink);padding:11px 18px;border-radius:999px;
+  font-size:13px;font-weight:550;opacity:0;pointer-events:none;transition:.25s;z-index:200;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);max-width:90vw;text-align:center;
+  border:1px solid var(--line-2);
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+.empty{text-align:center;padding:34px 14px;color:var(--muted)}
+.empty .big{font-size:32px;margin-bottom:8px;opacity:.5}
+.searchbar{display:flex;gap:8px;margin-bottom:12px}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+.note{background:var(--surface-2);border-left:3px solid var(--accent);padding:10px 12px;border-radius:8px;font-size:12px;color:var(--muted)}
+
+.subtabs{
+  display:inline-flex;gap:4px;background:var(--surface-3);border-radius:12px;padding:4px;margin-bottom:12px;
+}
+.subtab{
+  border:none;background:transparent;color:var(--muted);
+  padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit;white-space:nowrap;
+}
+.subtab.active{background:var(--accent);color:#fff;box-shadow:0 2px 6px rgba(59,130,246,.4)}
+
+#mapWrap{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow)}
+#map{height:min(65vh, 560px);width:100%;z-index:0;background:#0f172a}
+.map-overlay{
+  position:absolute;left:10px;bottom:10px;z-index:500;
+  background:rgba(15,23,42,.9);backdrop-filter:blur(4px);
+  padding:9px 11px;border-radius:10px;border:1px solid var(--line-2);
+  font-size:11px;color:var(--ink-2);box-shadow:0 3px 10px rgba(0,0,0,.4);
+  max-width:220px;
+}
+.map-overlay b{color:var(--ink);display:block;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.map-overlay .row{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.map-help{
+  position:absolute;right:10px;top:10px;z-index:500;
+  background:rgba(15,23,42,.9);backdrop-filter:blur(4px);
+  padding:8px 11px;border-radius:10px;border:1px solid var(--line-2);
+  font-size:11px;color:var(--ink-2);box-shadow:0 3px 10px rgba(0,0,0,.4);
+  max-width:200px;line-height:1.5;
+}
+.name-badge-marker{
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:700;font-size:11px;
+  padding:4px 9px;border-radius:14px;border:2px solid #fff;
+  box-shadow:0 3px 8px rgba(0,0,0,.35);
+  white-space:nowrap;
+  text-shadow:0 1px 2px rgba(0,0,0,.3);
+  transition:transform .15s;
+}
+.name-badge-marker:hover{transform:scale(1.1)}
+.home-marker{
+  width:34px;height:34px;border-radius:6px;
+  background:#334155;border:2px solid #fff;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:16px;
+  box-shadow:0 4px 10px rgba(0,0,0,.5);
+}
+.client-house-marker{
+  width:32px;height:32px;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;
+  background:#f59e0b;border:2px solid #fff;color:#111827;
+  font-size:17px;box-shadow:0 3px 9px rgba(0,0,0,.45);
+}
+.mapboxgl-popup-content{background:var(--surface);color:var(--ink);border:1px solid var(--line-2);border-radius:8px}
+.mapboxgl-popup-content b{color:var(--ink)}
+.mapboxgl-popup-close-button{color:var(--muted);font-size:18px}
+.mapboxgl-popup-tip{border-top-color:var(--surface)!important;border-bottom-color:var(--surface)!important}
+.mapboxgl-ctrl-group button{background-color:var(--surface-3)!important}
+.mapboxgl-ctrl-group button span{filter:invert(1)}
+.mapboxgl-ctrl-attrib{font-size:10px}
+
+/* ---------- SPLITTER PANEL (dark) ---------- */
+.splitter-wrap{padding:14px 0}
+.splitter{
+  background:linear-gradient(180deg,#26324a,#1a2438);
+  border-radius:12px;
+  padding:42px 30px 52px;
+  position:relative;
+  box-shadow:
+    0 20px 50px rgba(0,0,0,.5),
+    inset 0 0 0 2px #334560,
+    inset 0 1px 0 rgba(255,255,255,.08);
+  max-width:820px;
+  margin:0 auto;
+}
+.hole{
+  position:absolute;width:16px;height:16px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, #1a1a1a, #000);
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.1), 0 2px 3px rgba(0,0,0,.6);
+}
+.hole.left1{left:14px;top:60px}
+.hole.left2{left:14px;bottom:60px}
+.hole.right1{right:14px;top:60px}
+.hole.right2{right:14px;bottom:60px}
+.splitter-label{
+  position:absolute;top:14px;left:44px;
+  font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.15em;
+}
+.splitter-id{
+  position:absolute;top:14px;right:44px;
+  font-size:11px;font-weight:800;color:#93c5fd;
+  background:var(--surface-3);border-radius:6px;padding:3px 9px;
+  box-shadow:0 2px 4px rgba(0,0,0,.3);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  border:1px solid var(--line-2);
+}
+.splitter-ports{
+  display:grid;
+  gap:6px;
+  padding:14px 8px 0;
+}
+.port-cell{
+  position:relative;
+  height:72px;
+  cursor:pointer;
+  display:flex;
+  justify-content:center;
+  align-items:flex-end;
+  transition:transform .18s;
+}
+.port-cell:hover{transform:translateY(-4px)}
+.port-cell .connector{
+  position:absolute;top:10px;
+  width:42px;height:34px;
+  background:linear-gradient(180deg,#1590ff,#006bd6);
+  border-radius:5px 5px 2px 2px;
+  box-shadow:inset 0 2px 2px rgba(255,255,255,.25), 0 4px 5px rgba(0,0,0,.5);
+  z-index:2;
+}
+.port-cell .body{
+  width:44px;height:46px;
+  background:linear-gradient(180deg,#252525,#090909);
+  border-radius:4px;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.1), 0 3px 5px rgba(0,0,0,.7);
+}
+.port-cell .num{
+  position:absolute;top:-4px;left:50%;transform:translateX(-50%);
+  font-size:10px;font-weight:800;color:var(--ink-2);
+}
+.port-cell.available .connector{background:linear-gradient(180deg,#168bff,#0067c9)}
+.port-cell.connected .connector{background:linear-gradient(180deg,#22c55e,#15803d)}
+.port-cell.warning .connector{background:linear-gradient(180deg,#facc15,#ca8a04)}
+.port-cell.broken .connector{background:linear-gradient(180deg,#9ca3af,#4b5563)}
+.port-cell.selected .body{outline:3px solid #38bdf8;outline-offset:2px}
+.port-cell.selected .connector{box-shadow:0 0 14px #38bdf8,inset 0 2px 2px rgba(255,255,255,.25)}
+.port-cell .tick{
+  position:absolute;bottom:2px;right:6px;
+  font-size:9px;font-weight:800;
+  padding:1px 4px;border-radius:4px;
+}
+.port-cell.connected .tick.paid{background:#14532d;color:#86efac}
+.port-cell.connected .tick.unpaid{background:#7f1d1d;color:#fca5a5}
+.splitter-foot{
+  position:absolute;bottom:14px;left:44px;right:44px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:10px;color:var(--muted);font-weight:600;
+}
+.splitter-foot .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+@media(max-width:640px){
+  .splitter{padding:36px 14px 46px}
+  .port-cell{height:64px}
+  .port-cell .connector{width:36px;height:30px;top:8px}
+  .port-cell .body{width:38px;height:40px}
+  .splitter-label{left:32px;font-size:9px}
+  .splitter-id{right:32px;font-size:10px}
+  .splitter-foot{left:32px;right:32px}
+}
+
+/* =====================================================
+   RECEIPT
+   ===================================================== */
+.receipt-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:150;
+  display:none;align-items:flex-start;justify-content:center;
+  overflow-y:auto;padding:20px 12px 40px;
+  backdrop-filter:blur(4px);
+}
+.receipt-backdrop.open{display:flex}
+.receipt-shell{
+  width:100%;max-width:420px;
+  display:flex;flex-direction:column;align-items:center;
+  gap:14px;
+}
+.receipt-actions{
+  display:flex;gap:8px;width:100%;
+}
+.receipt-actions .btn{flex:1}
+
+.receipt-paper{
+  width:100%;
+  background:#fff;
+  color:#111;
+  padding:24px 20px;
+  border-radius:6px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12px;
+  line-height:1.55;
+  box-shadow:0 12px 40px rgba(0,0,0,.5);
+  position:relative;
+  /* torn edges */
+}
+.receipt-paper:before,
+.receipt-paper:after{
+  content:'';
+  position:absolute;left:0;right:0;height:8px;
+  background-image:radial-gradient(circle at 6px 0, transparent 6px, #fff 6px);
+  background-size:12px 8px;
+  background-position:0 0;
+}
+.receipt-paper:before{top:-7px;transform:scaleY(-1)}
+.receipt-paper:after{bottom:-7px}
+
+.rp-header{text-align:center;padding-bottom:6px}
+.rp-logo{
+  width:52px;height:52px;border-radius:12px;
+  background:linear-gradient(135deg,#3b82f6,#1e40af);
+  color:#fff;display:inline-flex;align-items:center;justify-content:center;
+  font-size:26px;font-weight:800;
+  margin-bottom:8px;
+  box-shadow:0 3px 8px rgba(59,130,246,.3);
+}
+.rp-biz{font-size:16px;font-weight:800;letter-spacing:.02em;color:#0f172a}
+.rp-tagline{font-size:10px;color:#64748b;font-style:italic;margin-top:2px}
+.rp-addr{font-size:10px;color:#475569;margin-top:6px;line-height:1.5}
+.rp-contact{font-size:10px;color:#475569;margin-top:2px}
+
+.rp-divider{
+  text-align:center;color:#cbd5e1;letter-spacing:-1px;overflow:hidden;margin:10px 0;
+  font-size:11px;white-space:nowrap;
+}
+.rp-divider.solid{color:#0f172a}
+.rp-title{
+  text-align:center;font-size:13px;font-weight:800;letter-spacing:.15em;color:#0f172a;
+  padding:2px 0;
+}
+
+.rp-label{font-size:9px;font-weight:800;color:#64748b;letter-spacing:.1em;margin-top:4px;margin-bottom:4px}
+.rp-name{font-size:13px;font-weight:800;color:#0f172a;margin-bottom:4px}
+.rp-row{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:#334155;padding:1.5px 0}
+.rp-row span:first-child{color:#64748b}
+.rp-row span:last-child{font-weight:600;color:#0f172a;text-align:right;word-break:break-word}
+.rp-row.big{
+  font-size:14px;font-weight:800;color:#0f172a;
+  padding:8px 0;margin:4px 0;
+  border-top:1.5px dashed #cbd5e1;
+  border-bottom:1.5px dashed #cbd5e1;
+}
+.rp-row.big span:first-child{color:#0f172a}
+.rp-row.big span:last-child{color:#15803d;font-size:16px}
+
+.rp-thanks{text-align:center;font-size:13px;font-weight:800;color:#0f172a;letter-spacing:.1em;margin-top:6px}
+.rp-footer{text-align:center;font-size:9px;color:#64748b;margin-top:3px;font-style:italic}
+.rp-barcode{
+  text-align:center;font-size:8px;color:#94a3b8;letter-spacing:.3em;
+  margin-top:12px;
+  font-family:ui-monospace,monospace;
+}
+.rp-void{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-18deg);
+  font-size:44px;font-weight:900;color:rgba(220,38,38,.15);
+  letter-spacing:.1em;pointer-events:none;
+}
+
+/* Receipt button in payments table */
+.rcpt-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 9px;font-size:11px;font-weight:700;
+  background:var(--surface-3);border:1px solid var(--line-2);
+  color:var(--ink-2);border-radius:7px;cursor:pointer;font-family:inherit;
+}
+.rcpt-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* =====================================================
+   PRINT — show only the receipt
+   ===================================================== */
+@media print{
+  html,body{background:#fff!important;padding:0!important;margin:0!important}
+  body>*{display:none!important}
+  #receiptBackdrop{display:block!important;position:static!important;background:#fff!important;padding:0!important;backdrop-filter:none!important;overflow:visible!important}
+  .receipt-shell{max-width:100%!important;gap:0!important}
+  .no-print{display:none!important}
+  .receipt-paper{
+    box-shadow:none!important;
+    width:80mm!important;
+    margin:0 auto!important;
+    padding:10mm 6mm!important;
+    border-radius:0!important;
+    page-break-inside:avoid;
+  }
+  .receipt-paper:before,.receipt-paper:after{display:none!important}
+  @page{margin:6mm}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">⚡ ISP Manager<small id="subBrand">—</small></div>
+  <span class="save-status" id="saveStatus" data-state="saving" role="status" aria-live="polite">Opening database…</span>
+  <button class="btn" id="btnBackup" title="Backup">⬇ Backup</button>
+  <button class="btn" id="btnRestore" title="Restore">⬆ Restore</button>
+</header>
+
+<nav class="tabs" id="tabs"></nav>
+<main id="view"></main>
+
+<!-- general modal -->
+<div class="backdrop" id="backdrop">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- receipt modal -->
+<div class="receipt-backdrop" id="receiptBackdrop">
+  <div class="receipt-shell">
+    <div class="receipt-actions no-print">
+      <button class="btn primary" id="btnPrintRcpt">🖨 Print</button>
+      <button class="btn" id="btnCopyRcpt">📋 Copy Text</button>
+      <button class="btn" id="btnShareRcpt">🔗 Share</button>
+      <button class="btn" data-act="closeReceipt">✕ Close</button>
+    </div>
+    <div id="receiptPaperMount"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="fileInput" accept="application/json" hidden>
+
+<script>
+/* =========================================================================
+   ISP MANAGER — dark mode + receipts
+   ========================================================================= */
+
+const KEY = 'isp-manager-v3';
+const TABS = [
+  {id:'dashboard', label:'Dashboard',  icon:'📊'},
+  {id:'clients',   label:'Clients',    icon:'👥'},
+  {id:'billing',   label:'Billing',    icon:'🧾'},
+  {id:'payments',  label:'Payments',   icon:'💵'},
+  {id:'naps',      label:'NAP Boxes',  icon:'🔌'},
+  {id:'complaints',label:'Complaints', icon:'🛠'},
+  {id:'installs',  label:'Installs',   icon:'📥'},
+  {id:'inventory', label:'Inventory',  icon:'📦'},
+  {id:'settings',  label:'Settings',   icon:'⚙️'},
+];
+
+let DB = null;
+let mapInstance = null;
+let mapMarkers = {};
+let mapLines = [];
+let mapLineEvents = [];
+let mapHoverPopup = null;
+const state = {
+  tab:'dashboard',
+  month:null,
+  search:'',
+  napView:'grid',
+  map3d:false,
+  selectedNapId:null,
+  mapPlaceClient:false,
+  pendingClientHouse:null,
+  currentReceiptId:null,
+};
+
+/* ------------------------------ helpers ------------------------------ */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const peso = n => '₱' + Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2, maximumFractionDigits:2});
+const num  = n => Number(n||0);
+const pad  = n => String(n).padStart(2,'0');
+const iso  = d => { const x = new Date(d); return `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`; };
+const ym   = d => { const x = new Date(d); return `${x.getFullYear()}-${pad(x.getMonth()+1)}`; };
+const todayISO = () => iso(new Date());
+const nowTime = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const monthLabel = m => {
+  if(!m) return '—';
+  const [y,mo] = m.split('-');
+  return new Date(y, mo-1, 1).toLocaleDateString('en-PH',{month:'long', year:'numeric'});
+};
+const daysAgo = (a,b) => Math.floor((new Date(b) - new Date(a)) / 86400000);
+const uid = () => Math.random().toString(36).slice(2,9);
+const PLAN_LABELS = {
+  '10mbps':'10 Mbps', '15mbps':'30 Mbps', '20mbps':'20 Mbps',
+  '25mbps':'50 Mbps', '30mbps':'30 Mbps', '50mbps':'50 Mbps'
+};
+const LEGACY_PLAN_PRICES = {'15mbps':800, '25mbps':1000};
+
+function planKey(plan){
+  return String(plan||'').toLowerCase().replace(/\s+/g,'');
+}
+
+function normalizePlanLabel(plan){
+  return PLAN_LABELS[planKey(plan)] || plan;
+}
+
+function migratePlanPricing(){
+  let changed = false;
+  const plans = DB.settings.plans || [];
+  DB.settings.plans = [...new Set(plans.map(normalizePlanLabel))];
+  if(JSON.stringify(plans)!==JSON.stringify(DB.settings.plans)) changed = true;
+
+  (DB.clients||[]).forEach(client=>{
+    const key = planKey(client.plan);
+    const label = normalizePlanLabel(client.plan);
+    if(label!==client.plan){ client.plan = label; changed = true; }
+    if(Object.hasOwn(LEGACY_PLAN_PRICES, key)){
+      client.rate = LEGACY_PLAN_PRICES[key];
+      changed = true;
+    }
+  });
+  (DB.installs||[]).forEach(install=>{
+    const label = normalizePlanLabel(install.plan);
+    if(label!==install.plan){ install.plan = label; changed = true; }
+  });
+  return changed;
+}
+
+function standardPlanRate(plan){
+  const key = planKey(plan);
+  if(key==='30mbps') return 800;
+  if(key==='50mbps') return 1000;
+  return null;
+}
+
+function nextId(prefix, arr){
+  let max = 0;
+  arr.forEach(r=>{
+    const m = String(r.id||'').match(/(\d+)\s*$/);
+    if(m) max = Math.max(max, +m[1]);
+  });
+  return `${prefix}-${String(max+1).padStart(4,'0')}`;
+}
+
+function nextReceiptNo(){
+  const y = new Date().getFullYear();
+  const prefix = `RCP-${y}-`;
+  let max = 0;
+  (DB.payments||[]).forEach(p=>{
+    if(p.receiptNo && p.receiptNo.startsWith(prefix)){
+      const n = parseInt(p.receiptNo.slice(prefix.length), 10) || 0;
+      max = Math.max(max, n);
+    }
+  });
+  return prefix + String(max+1).padStart(4,'0');
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ------------------------------ storage ------------------------------ */
+const DATABASE_NAME = 'isp-manager-database';
+const DATABASE_STORE = 'records';
+let databasePromise = null;
+let saveRevision = 0;
+let saveQueue = Promise.resolve();
+
+function setSaveStatus(message, status='saved'){
+  const el = document.getElementById('saveStatus');
+  if(!el) return;
+  el.textContent = message;
+  el.dataset.state = status;
+}
+
+function openDatabase(){
+  if(!('indexedDB' in window)) return Promise.reject(new Error('IndexedDB is unavailable'));
+  if(!databasePromise){
+    databasePromise = new Promise((resolve,reject)=>{
+      const request = indexedDB.open(DATABASE_NAME, 1);
+      request.onupgradeneeded = ()=>{
+        if(!request.result.objectStoreNames.contains(DATABASE_STORE)){
+          request.result.createObjectStore(DATABASE_STORE);
+        }
+      };
+      request.onsuccess = ()=>resolve(request.result);
+      request.onerror = ()=>reject(request.error || new Error('Could not open database'));
+    }).catch(error=>{
+      databasePromise = null;
+      throw error;
+    });
+  }
+  return databasePromise;
+}
+
+function save(){
+  const revision = ++saveRevision;
+  const snapshot = JSON.parse(JSON.stringify(DB));
+  let localSaved = false;
+  try{
+    localStorage.setItem(KEY, JSON.stringify(snapshot));
+    localSaved = true;
+  }catch(error){ console.warn('Local backup could not be updated', error); }
+  setSaveStatus('Saving…', 'saving');
+
+  openDatabase().then(database=>new Promise((resolve,reject)=>{
+    const transaction = database.transaction(DATABASE_STORE, 'readwrite');
+    transaction.objectStore(DATABASE_STORE).put(snapshot, 'current');
+    transaction.oncomplete = resolve;
+    transaction.onerror = ()=>reject(transaction.error || new Error('Database write failed'));
+    transaction.onabort = ()=>reject(transaction.error || new Error('Database write aborted'));
+  })).catch(error=>console.warn('Local database backup failed', error));
+
+  saveQueue = saveQueue.catch(()=>{}).then(()=>fetch('/api/state',{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({state:snapshot})
+  })).then(response=>{
+    if(!response.ok) throw new Error(`PostgreSQL save failed (${response.status})`);
+    if(revision===saveRevision) setSaveStatus('Saved to PostgreSQL');
+  });
+  saveQueue.catch(error=>{
+    console.warn('PostgreSQL save failed', error);
+    if(revision===saveRevision){
+      setSaveStatus(localSaved ? 'PostgreSQL unavailable · saved on this device' : 'PostgreSQL save failed', localSaved ? 'warning' : 'error');
+    }
+  });
+}
+
+async function load(){
+  try{
+    const response = await fetch('/api/state');
+    if(!response.ok) throw new Error(`PostgreSQL load failed (${response.status})`);
+    const payload = await response.json();
+    if(payload.state) return payload.state;
+  }catch(error){ console.warn('PostgreSQL unavailable; checking local backup', error); }
+  try{
+    const database = await openDatabase();
+    const stored = await new Promise((resolve,reject)=>{
+      const transaction = database.transaction(DATABASE_STORE, 'readonly');
+      const request = transaction.objectStore(DATABASE_STORE).get('current');
+      request.onsuccess = ()=>resolve(request.result || null);
+      request.onerror = ()=>reject(request.error || new Error('Database read failed'));
+    });
+    if(stored) return stored;
+  }catch(error){ console.warn('Database unavailable; checking local backup', error); }
+  try{
+    const raw = localStorage.getItem(KEY) || localStorage.getItem('isp-manager-v2');
+    if(raw) return JSON.parse(raw);
+  }catch(e){ console.warn(e); }
+  return null;
+}
+
+/* ------------------------------ seed ------------------------------ */
+function seed(){
+  const now = new Date();
+  const thisM = ym(now);
+  const lastM = ym(new Date(now.getFullYear(), now.getMonth()-1, 1));
+  const due = m => `${m}-05`;
+  const ago = n => iso(new Date(Date.now() - n*86400000));
+  const y = now.getFullYear();
+
+  const pppSecrets = [
+    ['felix','15mbps'], ['jojo12345','25mbps'], ['nanes','15mbps'], ['gapo','25mbps'],
+    ['rowell','15mbps'], ['ratb','15mbps'], ['hepe','15mbps'], ['albert','15mbps'],
+    ['potpot','15mbps'], ['lizel','15mbps'], ['jelo','15mbps'], ['katt','25mbps','','Suspended'],
+    ['tomas','10mbps','pulis'], ['matt','15mbps'], ['jemar','15mbps'], ['bongbong','15mbps'],
+    ['arnel','15mbps'], ['beverly','15mbps'], ['josenew','25mbps'], ['celly2','15mbps','renzo'],
+    ['adriano','15mbps'], ['jaymark','15mbps'], ['hazelmiranda','15mbps'], ['edgar','15mbps'],
+    ['ivanpinsanmiranda','15mbps'], ['jose','20mbps'], ['marlondimla','15mbps','piel'], ['hob','15mbps'],
+    ['paulo1','15mbps'], ['rudolf','15mbps'], ['vangie','25mbps'], ['maricel','15mbps'],
+    ['bakspatubig','15mbps'], ['graceliongson','15mbps'], ['joel','15mbps'], ['reden','15mbps'],
+    ['malu','15mbps'], ['chelly','15mbps'], ['ericson','15mbps'], ['ppp','','Profile not specified'],
+    ['regine','15mbps'], ['maribel','15mbps'], ['dada','25mbps'], ['ruby','15mbps','beyanan ni jemuel'],
+    ['lontoc','15mbps','kabayo'], ['leslie','15mbps'], ['clarisa','15mbps','ilong'],
+    ['jeff','15mbps','jeff-nanaellen','Active','::/0'], ['ambet','15mbps','ambet'],
+    ['aeron','15mbps'], ['danica','15mbps','JR sa likod'], ['ivan','15mbps','ivan meranda'],
+    ['jaycee','25mbps','jaycee'], ['jennyfer','15mbps'], ['johnpaul','15mbps','johnpaul peil'],
+    ['jayson','15mbps','jaysonpatubig'], ['mirasol','15mbps'], ['jendimla','15mbps'],
+    ['cejaydimla','15mbps'], ['litoliongson','15mbps'], ['ramoncalma','15mbps'],
+    ['jennilynancheta','15mbps'],
+  ];
+  const clients = pppSecrets.map(([name, plan, notes='', status='Active', remoteIpv6Prefix=''], index)=>({
+    id:`C-${String(index+1).padStart(4,'0')}`, name, pppoe:name,
+    plan:normalizePlanLabel(plan || 'Unspecified'), rate:standardPlanRate(plan) || 0,
+    status, notes, service:'pppoe', remoteIpv6Prefix,
+    barangay:'', city:'', province:'', contact:'', installed:'', napId:'', port:'', onu:'', mac:''
+  }));
+
+  const napBoxes = [
+    {id:'NAP-001', label:'NAP-San Isidro-01', address:'123 Purok 2, Brgy. San Isidro', landmark:'Near barangay hall',
+     lat:14.12345, lng:121.12345, totalPorts:8, uplinkId:'', upstream:'Splitter', upstreamId:'OLT-01', splitter:'1:8',
+     route:'Aerial drop along main road', installed:ago(500), lastMaint:ago(60), status:'Active', color:'#2563eb'},
+    {id:'NAP-002', label:'NAP-San Isidro-02', address:'456 Purok 4, Brgy. San Isidro', landmark:'Beside sari-sari store',
+     lat:14.12380, lng:121.12400, totalPorts:16, uplinkId:'', upstream:'Splitter', upstreamId:'OLT-01', splitter:'1:16',
+     route:'Underground 12-core to splitter', installed:ago(420), lastMaint:ago(45), status:'Active', color:'#7c3aed'},
+    {id:'NAP-003', label:'NAP-San Isidro-03', address:'789 Purok 6, Brgy. San Isidro', landmark:'Near basketball court',
+     lat:14.12420, lng:121.12460, totalPorts:8, uplinkId:'NAP-001', upstream:'Splitter', upstreamId:'NAP-001', splitter:'1:8',
+     route:'Aerial, new build', installed:ago(30), lastMaint:ago(30), status:'Active', color:'#059669'},
+  ];
+
+  const billing = [];
+  [lastM, thisM].forEach(m=>{
+    clients.forEach(c=>{
+      billing.push({id:`INV-${m}-${c.id}`, month:m, clientId:c.id, dueDate:due(m), amountDue:c.rate, remarks:''});
+    });
+  });
+
+  const payments = [
+    {id:'P-0001', receiptNo:`RCP-${y}-0001`, date:`${lastM}-03`, clientId:'C-0001', month:lastM, amount:1499, method:'GCash', ref:'REF123', receivedBy:'Admin', notes:''},
+    {id:'P-0002', receiptNo:`RCP-${y}-0002`, date:`${lastM}-06`, clientId:'C-0002', month:lastM, amount:500,  method:'Cash',  ref:'',       receivedBy:'Admin', notes:'Partial payment'},
+    {id:'P-0003', receiptNo:`RCP-${y}-0003`, date:`${lastM}-04`, clientId:'C-0004', month:lastM, amount:1499, method:'Bank Transfer', ref:'REF789', receivedBy:'Admin', notes:''},
+    {id:'P-0004', receiptNo:`RCP-${y}-0004`, date:`${lastM}-08`, clientId:'C-0005', month:lastM, amount:999,  method:'GCash', ref:'REF321', receivedBy:'Admin', notes:''},
+    {id:'P-0005', receiptNo:`RCP-${y}-0005`, date:`${thisM}-02`, clientId:'C-0001', month:thisM, amount:1499, method:'Maya',  ref:'REF456', receivedBy:'Admin', notes:''},
+    {id:'P-0006', receiptNo:`RCP-${y}-0006`, date:`${thisM}-03`, clientId:'C-0004', month:thisM, amount:1499, method:'GCash', ref:'REF654', receivedBy:'Admin', notes:''},
+  ];
+
+  const napPorts = [];
+  napBoxes.forEach(b=>{
+    for(let i=1;i<=b.totalPorts;i++){
+      const c = clients.find(x => x.napId===b.id && Number(x.port)===i);
+      napPorts.push({id:`NP-${b.id}-${i}`, napId:b.id, port:i, clientId: c ? c.id : '', status: c ? 'Used' : 'Free', notes:''});
+    }
+  });
+
+  const complaints = [
+    {id:'T-0001', date:ago(3), clientId:'C-0002', category:'No Internet', description:'LOS red light on ONU',
+     tech:'Tech Jun', status:'Resolved', fixedDate:ago(3), resolution:'Replaced patch cord', cost:0},
+    {id:'T-0002', date:ago(1), clientId:'C-0003', category:'Slow speed', description:'Speed test only 5 Mbps',
+     tech:'Tech Ron', status:'In Progress', fixedDate:'', resolution:'', cost:0},
+  ];
+
+  const installs = [
+    {id:'R-0001', date:ago(2), type:'New Install', name:'Mark Cruz', contact:'09211234567',
+     address:'Purok 5, Brgy. San Isidro', plan:'35 Mbps', napId:'NAP-001', status:'Completed',
+     schedule:ago(1), tech:'Tech Jun', notes:''},
+    {id:'R-0002', date:ago(1), type:'New Install', name:'Rosa Mendoza', contact:'09221234567',
+     address:'Purok 7, Brgy. San Isidro', plan:'50 Mbps', napId:'NAP-003', status:'Scheduled',
+     schedule:iso(new Date(Date.now()+2*86400000)), tech:'Tech Ron', notes:'Needs 60m drop cable'},
+  ];
+
+  const inventory = [
+    {id:'IT-0001', category:'ONU', model:'Huawei HG8145V5', serial:'SN123', qty:8, unit:'pcs',
+     location:'Main stock', clientId:'', status:'In Stock', dateAdded:ago(120), notes:''},
+    {id:'IT-0002', category:'Fiber Cable', model:'1-core drop wire', serial:'', qty:500, unit:'m',
+     location:'Main stock', clientId:'', status:'In Stock', dateAdded:ago(120), notes:''},
+    {id:'IT-0003', category:'ONU', model:'Huawei HG8145V5', serial:'SN124', qty:1, unit:'pcs',
+     location:'Installed', clientId:'C-0001', status:'Installed', dateAdded:ago(400), notes:''},
+    {id:'IT-0004', category:'Connector', model:'SC/APC', serial:'', qty:100, unit:'pcs',
+     location:'Main stock', clientId:'', status:'In Stock', dateAdded:ago(120), notes:''},
+    {id:'IT-0005', category:'Router', model:'TP-Link AC1200', serial:'SN555', qty:3, unit:'pcs',
+     location:'Main stock', clientId:'', status:'In Stock', dateAdded:ago(60), notes:''},
+  ];
+
+  return {
+    clients, billing:[], payments:[], napBoxes:[], napPorts:[], complaints:[], installs:[], inventory:[],
+    settings:{
+      business:'My ISP',
+      tagline:'Fiber Internet Service Provider',
+      address:'Brgy. San Isidro, Calamba, Laguna',
+      contact:'0917-000-0000 · myisp@example.com',
+      tin:'',
+      plans:['10 Mbps','20 Mbps','30 Mbps','50 Mbps','Unspecified'],
+      methods:['Cash','GCash','Maya','Bank Transfer'],
+      dueDay:5,
+      homeBase:{ name:'Home Base / OLT', lat:14.1230, lng:121.1230 },
+      created: todayISO()
+    }
+  };
+}
+
+function isLegacyDemoData(data){
+  const sampleClients = [
+    ['C-0001','Juan Dela Cruz','juan.dc'], ['C-0002','Maria Santos','maria.santos'],
+    ['C-0003','Pedro Reyes','pedro.reyes'], ['C-0004','Ana Lopez','ana.lopez'],
+    ['C-0005','Mark Cruz','mark.cruz'],
+  ];
+  const hasIds = (rows, ids) => Array.isArray(rows) && rows.length===ids.length &&
+    ids.every(id=>rows.some(row=>row.id===id));
+  return Array.isArray(data.clients) &&
+    JSON.stringify(data.clients.map(c=>[c.id,c.name,c.pppoe]))===JSON.stringify(sampleClients) &&
+    hasIds(data.payments,['P-0001','P-0002','P-0003','P-0004','P-0005','P-0006']) &&
+    hasIds(data.napBoxes,['NAP-001','NAP-002','NAP-003']) &&
+    hasIds(data.complaints,['T-0001','T-0002']) &&
+    hasIds(data.installs,['R-0001','R-0002']) &&
+    hasIds(data.inventory,['IT-0001','IT-0002','IT-0003','IT-0004','IT-0005']) &&
+    Array.isArray(data.billing) && data.billing.length===10 &&
+    Array.isArray(data.napPorts) && data.napPorts.length===32 &&
+    data.settings?.business==='My ISP';
+}
+
+/* ------------------------------ init ------------------------------ */
+async function init(){
+  DB = await load();
+  if(!DB) DB = seed();
+  else if(isLegacyDemoData(DB)){
+    const existingSettings = DB.settings || {};
+    DB = seed();
+    DB.settings = {...DB.settings, ...existingSettings, plans:DB.settings.plans};
+    toast('Imported PPPoE subscriber list');
+  }
+  DB.settings = DB.settings || {};
+  DB.settings.plans = DB.settings.plans || ['10 Mbps','20 Mbps','30 Mbps','50 Mbps','Unspecified'];
+  DB.settings.methods = DB.settings.methods || ['Cash','GCash','Maya','Bank Transfer'];
+  DB.settings.dueDay = DB.settings.dueDay || 5;
+  DB.settings.business = DB.settings.business || 'My ISP';
+  DB.settings.tagline = DB.settings.tagline || 'Fiber Internet Service Provider';
+  DB.settings.address = DB.settings.address || '';
+  DB.settings.contact = DB.settings.contact || '';
+  DB.settings.tin = DB.settings.tin || '';
+  if(!DB.settings.homeBase) DB.settings.homeBase = { name:'Home Base / OLT', lat:14.1230, lng:121.1230 };
+  migratePlanPricing();
+  (DB.clients||[]).forEach(client=>{
+    if(client.pppoe && !client.service) client.service = 'pppoe';
+    if(client.pppoe==='jeff' && client.notes==='jeff-nanaellen; remote-ipv6-prefix=::/0'){
+      client.notes = 'jeff-nanaellen';
+      client.remoteIpv6Prefix = '::/0';
+    }
+  });
+  // ensure all payments have a receiptNo
+  (DB.payments||[]).forEach(p=>{ if(!p.receiptNo) p.receiptNo = nextReceiptNo(); });
+  state.month = state.month || ym(new Date());
+  document.getElementById('subBrand').textContent = DB.settings.business;
+  save();
+  render();
+}
+
+/* ------------------------------ computed ------------------------------ */
+function billingRows(){
+  const today = todayISO();
+  return DB.billing.map(b=>{
+    const client = DB.clients.find(c=>c.id===b.clientId);
+    const paid = DB.payments
+      .filter(p=>p.clientId===b.clientId && p.month===b.month)
+      .reduce((s,p)=>s+num(p.amount),0);
+    const amountDue = num(b.amountDue);
+    const balance = amountDue - paid;
+    const daysOverdue = balance > 0 ? Math.max(0, daysAgo(b.dueDate, today)) : 0;
+    const status = balance <= 0 ? 'Paid' : (paid === 0 ? 'Unpaid' : 'Partial');
+    const aging = balance <= 0 ? 'Paid'
+      : daysOverdue === 0 ? 'Current'
+      : daysOverdue <= 7 ? '1-7 days'
+      : daysOverdue <= 15 ? '8-15 days'
+      : '16+ days';
+    return {
+      ...b, clientName: client ? client.name : '—',
+      clientStatus: client ? client.status : '—',
+      paid, balance, status, daysOverdue, aging
+    };
+  });
+}
+
+function napStats(box){
+  const ports = DB.napPorts.filter(p=>p.napId===box.id).sort((a,b)=>a.port-b.port);
+  const used = ports.filter(p=>p.status==='Used').length;
+  const faulty = ports.filter(p=>p.status==='Faulty').length;
+  const reserved = ports.filter(p=>p.status==='Reserved').length;
+  const total = num(box.totalPorts) || ports.length;
+  const free = Math.max(0, total - used - faulty - reserved);
+  return {used, free, faulty, reserved, total, ports};
+}
+
+function agingClass(a){
+  return a==='Paid' ? 'b-green'
+    : a==='Current' ? 'b-gray'
+    : a==='1-7 days' ? 'b-amber'
+    : a==='8-15 days' ? 'b-orange'
+    : 'b-red';
+}
+
+/* ------------------------------ render ------------------------------ */
+function render(){
+  document.getElementById('tabs').innerHTML = TABS.map(t=>
+    `<button class="tab ${state.tab===t.id?'active':''}" data-tab="${t.id}">${t.icon} ${t.label}</button>`
+  ).join('');
+
+  const PAGES = {
+    dashboard: pageDashboard, clients: pageClients, billing: pageBilling,
+    payments: pagePayments, naps: pageNaps, complaints: pageComplaints,
+    installs: pageInstalls, inventory: pageInventory, settings: pageSettings
+  };
+  document.getElementById('view').innerHTML = PAGES[state.tab]();
+  window.scrollTo({top:0, behavior:'instant'});
+  if(state.tab==='naps' && state.napView==='map') setTimeout(initMap, 60);
+}
+
+/* ------------------------------ dashboard ------------------------------ */
+function pageDashboard(){
+  const rows = billingRows();
+  const m = state.month;
+  const total = DB.clients.length;
+  const active = DB.clients.filter(c=>c.status==='Active').length;
+  const suspended = DB.clients.filter(c=>c.status==='Suspended').length;
+  const disc = DB.clients.filter(c=>c.status==='Disconnected').length;
+  const mRows = rows.filter(r=>r.month===m);
+  const expected = mRows.reduce((s,r)=>s+num(r.amountDue),0);
+  const collected = mRows.reduce((s,r)=>s+r.paid,0);
+  const unpaid = Math.max(0, expected-collected);
+  const rate = expected ? Math.round(collected/expected*100) : 0;
+  const arrears = rows.filter(r=>r.balance>0).reduce((s,r)=>s+r.balance,0);
+
+  const byClient = {};
+  rows.filter(r=>r.balance>0).forEach(r=>{
+    byClient[r.clientId] = byClient[r.clientId] || {name:r.clientName, bal:0, oldest:0};
+    byClient[r.clientId].bal += r.balance;
+    byClient[r.clientId].oldest = Math.max(byClient[r.clientId].oldest, r.daysOverdue);
+  });
+  const topUnpaid = Object.entries(byClient).map(([id,v])=>({id,...v}))
+    .sort((a,b)=>b.bal-a.bal).slice(0,8);
+
+  const overdue = rows.filter(r=>r.balance>0 && r.daysOverdue>0)
+    .sort((a,b)=>b.daysOverdue-a.daysOverdue).slice(0,10);
+
+  const openTickets = DB.complaints.filter(c=>c.status!=='Resolved' && c.status!=='Closed').length;
+  const pendingInstalls = DB.installs.filter(r=>r.status!=='Completed' && r.status!=='Cancelled').length;
+
+  const napCards = DB.napBoxes.map(b=>{
+    const s = napStats(b);
+    const pct = s.total ? Math.round(s.used/s.total*100) : 0;
+    const cls = s.free<=2 ? 'full' : s.free<=4 ? 'warn' : 'ok';
+    return `
+      <div style="margin-bottom:12px">
+        <div class="flex">
+          <strong>${esc(b.id)}</strong>
+          <span class="small muted">${esc(b.label||'')}</span>
+          <span class="spacer"></span>
+          <span class="small ${s.free<=2?'':'muted'}">${s.used}/${s.total} used · ${s.free} free</span>
+        </div>
+        <div class="bar ${cls}"><span style="width:${pct}%"></span></div>
+      </div>`;
+  }).join('');
+
+  return `
+  <div class="page-head">
+    <h1>Dashboard</h1>
+    <select id="monthPick" style="width:auto">
+      ${monthOptions().map(o=>`<option value="${o}" ${o===m?'selected':''}>${monthLabel(o)}</option>`).join('')}
+    </select>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">Total Clients</div><div class="val">${total}</div>
+      <div class="sub">${active} active · ${suspended} suspended · ${disc} disc</div></div>
+    <div class="kpi"><div class="lbl">Expected</div><div class="val">${peso(expected)}</div>
+      <div class="sub">${monthLabel(m)}</div></div>
+    <div class="kpi"><div class="lbl">Collected</div><div class="val" style="color:var(--green)">${peso(collected)}</div>
+      <div class="sub">${rate}% collection rate</div></div>
+    <div class="kpi"><div class="lbl">Unpaid</div><div class="val" style="color:var(--red)">${peso(unpaid)}</div>
+      <div class="sub">${peso(arrears)} total arrears</div></div>
+    <div class="kpi"><div class="lbl">Open Tickets</div><div class="val">${openTickets}</div>
+      <div class="sub">${pendingInstalls} pending installs</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Collection Rate</h2><span class="small muted">${monthLabel(m)}</span></div>
+    <div class="bar ${rate>=90?'ok':rate>=60?'warn':'full'}" style="height:12px"><span style="width:${rate}%"></span></div>
+    <div class="flex small muted" style="margin-top:8px">
+      <span>${peso(collected)} collected</span><span class="spacer"></span><span>${peso(expected)} expected</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Top Unpaid Accounts</h2></div>
+    ${topUnpaid.length ? `
+    <div class="tw"><table>
+      <thead><tr><th>Client</th><th class="right">Balance</th><th class="right">Oldest</th></tr></thead>
+      <tbody>${topUnpaid.map(u=>`<tr>
+        <td>${esc(u.name)}<div class="tiny muted">${esc(u.id)}</div></td>
+        <td class="right"><strong>${peso(u.bal)}</strong></td>
+        <td class="right"><span class="badge ${agingClass(u.oldest>15?'16+ days':u.oldest>7?'8-15 days':u.oldest>0?'1-7 days':'Current')}">${u.oldest}d</span></td>
+      </tr>`).join('')}</tbody>
+    </table></div>` : `<div class="empty"><div class="big">🎉</div>No outstanding balances.</div>`}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Overdue / Reminder List</h2>
+      <span class="small muted">${overdue.length} account(s)</span></div>
+    ${overdue.length ? `
+    <div class="tw"><table>
+      <thead><tr><th>Client</th><th>Month</th><th>Due</th><th class="right">Balance</th><th>Aging</th></tr></thead>
+      <tbody>${overdue.map(r=>`<tr>
+        <td>${esc(r.clientName)}</td>
+        <td class="muted">${esc(r.month)}</td>
+        <td class="muted">${esc(r.dueDate)}</td>
+        <td class="right">${peso(r.balance)}</td>
+        <td><span class="badge ${agingClass(r.aging)}">${r.aging} · ${r.daysOverdue}d</span></td>
+      </tr>`).join('')}</tbody>
+    </table></div>` : `<div class="empty"><div class="big">✅</div>Nothing overdue.</div>`}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>NAP Box Capacity</h2>
+      <button class="btn sm" data-tab="naps">View all</button></div>
+    ${napCards || '<div class="empty">No NAP boxes yet.</div>'}
+  </div>
+  `;
+}
+
+/* ------------------------------ clients ------------------------------ */
+function pageClients(){
+  const q = state.search.toLowerCase();
+  const list = DB.clients.filter(c=>
+    !q || [c.id,c.name,c.barangay,c.contact,c.pppoe].join(' ').toLowerCase().includes(q)
+  );
+  const rows = list.map(c=>{
+    const bal = billingRows().filter(r=>r.clientId===c.id && r.balance>0)
+      .reduce((s,r)=>s+r.balance,0);
+    const stCls = c.status==='Active' ? 'b-green' : c.status==='Suspended' ? 'b-amber' : 'b-gray';
+    return `<tr>
+      <td><strong>${esc(c.id)}</strong><div class="tiny muted">${esc(c.pppoe||'')}</div></td>
+      <td class="wrap">${esc(c.name)}<div class="tiny muted">${esc(c.barangay||'')}</div></td>
+      <td>${esc(c.contact||'')}</td>
+      <td>${esc(c.plan||'')}<div class="tiny muted">${peso(c.rate)}/mo</div></td>
+      <td>${c.napId?`${esc(c.napId)}<div class="tiny muted">port ${esc(c.port)}</div>`:'<span class="muted">—</span>'}</td>
+      <td class="right">${bal>0?`<span class="badge b-red">${peso(bal)}</span>`:'<span class="muted small">—</span>'}</td>
+      <td><span class="badge ${stCls}">${esc(c.status)}</span></td>
+      <td class="right"><div class="row-actions">
+        <button class="btn sm" data-act="edit" data-table="clients" data-id="${esc(c.id)}">Edit</button>
+        <button class="btn sm danger" data-act="del" data-table="clients" data-id="${esc(c.id)}">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="page-head">
+    <h1>Clients <span class="muted small">(${list.length})</span></h1>
+    <button class="btn primary" data-act="add" data-table="clients">+ Add Client</button>
+  </div>
+  <div class="searchbar">
+    <input type="search" id="searchBox" placeholder="Search name, ID, barangay, PPPoE…" value="${esc(state.search)}">
+  </div>
+  ${DB.clients.some(c=>num(c.rate)<=0)?'<div class="note" style="margin-bottom:12px">Monthly prices were not included in the PPP export. Set client rates before generating invoices.</div>':''}
+  <div class="card">
+    ${list.length ? `<div class="tw"><table>
+      <thead><tr><th>ID</th><th>Name</th><th>Contact</th><th>Plan</th><th>NAP / Port</th><th class="right">Balance</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>` : `<div class="empty"><div class="big">👥</div>No clients found.</div>`}
+  </div>
+  `;
+}
+
+/* ------------------------------ billing ------------------------------ */
+function pageBilling(){
+  const m = state.month;
+  let rows = billingRows().filter(r=>r.month===m);
+  const expected = rows.reduce((s,r)=>s+num(r.amountDue),0);
+  const collected = rows.reduce((s,r)=>s+r.paid,0);
+  const unpaid = Math.max(0, expected-collected);
+  const rate = expected ? Math.round(collected/expected*100) : 0;
+
+  const body = rows.sort((a,b)=>b.daysOverdue-a.daysOverdue || a.clientName.localeCompare(b.clientName))
+  .map(r=>{
+    const stCls = r.status==='Paid'?'b-green':r.status==='Partial'?'b-amber':'b-red';
+    return `<tr>
+      <td>${esc(r.clientName)}<div class="tiny muted">${esc(r.clientId)}</div></td>
+      <td class="muted">${esc(r.dueDate)}</td>
+      <td class="right">${peso(r.amountDue)}</td>
+      <td class="right">${peso(r.paid)}</td>
+      <td class="right"><strong>${r.balance>0?peso(r.balance):'—'}</strong></td>
+      <td><span class="badge ${stCls}">${r.status}</span></td>
+      <td><span class="badge ${agingClass(r.aging)}">${r.aging}</span></td>
+      <td class="right">${r.daysOverdue>0?`<span class="small muted">${r.daysOverdue}d</span>`:''}</td>
+      <td class="right"><div class="row-actions">
+        <button class="btn sm" data-act="edit" data-table="billing" data-id="${esc(r.id)}">Edit</button>
+        <button class="btn sm danger" data-act="del" data-table="billing" data-id="${esc(r.id)}">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="page-head">
+    <h1>Billing</h1>
+    <select id="monthPick" style="width:auto">
+      ${monthOptions().map(o=>`<option value="${o}" ${o===m?'selected':''}>${monthLabel(o)}</option>`).join('')}
+    </select>
+    <button class="btn" data-act="generate">⚙ Generate</button>
+    <button class="btn primary" data-act="add" data-table="billing">+ Invoice</button>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">Expected</div><div class="val">${peso(expected)}</div></div>
+    <div class="kpi"><div class="lbl">Collected</div><div class="val" style="color:var(--green)">${peso(collected)}</div></div>
+    <div class="kpi"><div class="lbl">Unpaid</div><div class="val" style="color:var(--red)">${peso(unpaid)}</div></div>
+    <div class="kpi"><div class="lbl">Rate</div><div class="val">${rate}%</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>${monthLabel(m)}</h2>
+      <span class="small muted">${rows.length} invoice(s)</span></div>
+    ${rows.length ? `<div class="tw"><table>
+      <thead><tr><th>Client</th><th>Due</th><th class="right">Amount</th><th class="right">Paid</th><th class="right">Balance</th><th>Status</th><th>Aging</th><th></th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>` : `<div class="empty"><div class="big">🧾</div>
+      No invoices for ${monthLabel(m)}.<br><br>
+      <button class="btn primary" data-act="generate">Generate invoices</button>
+    </div>`}
+  </div>
+  `;
+}
+
+/* ------------------------------ payments ------------------------------ */
+function pagePayments(){
+  const q = state.search.toLowerCase();
+  const all = [...DB.payments].sort((a,b)=>b.date.localeCompare(a.date));
+  const rows = all.filter(p=>{
+    if(!q) return true;
+    const c = DB.clients.find(x=>x.id===p.clientId);
+    return [p.id, p.receiptNo, p.ref, p.method, p.month, c?c.name:'', c?c.id:'']
+      .join(' ').toLowerCase().includes(q);
+  });
+  const totalThis = all.filter(p=>p.month===state.month).reduce((s,p)=>s+num(p.amount),0);
+  const totalAll = all.reduce((s,p)=>s+num(p.amount),0);
+
+  const body = rows.map(p=>{
+    const c = DB.clients.find(x=>x.id===p.clientId);
+    return `<tr>
+      <td><strong>${esc(p.receiptNo||p.id)}</strong><div class="tiny muted">${esc(p.id)}</div></td>
+      <td>${esc(p.date)}</td>
+      <td>${esc(c?c.name:p.clientId)}</td>
+      <td class="muted">${esc(p.month)}</td>
+      <td class="right"><strong>${peso(p.amount)}</strong></td>
+      <td><span class="badge b-blue">${esc(p.method)}</span></td>
+      <td class="muted">${esc(p.ref||'—')}</td>
+      <td class="right"><div class="row-actions">
+        <button class="rcpt-btn" data-act="receipt" data-id="${esc(p.id)}" title="View receipt">🧾 Receipt</button>
+        <button class="btn sm" data-act="edit" data-table="payments" data-id="${esc(p.id)}">Edit</button>
+        <button class="btn sm danger" data-act="del" data-table="payments" data-id="${esc(p.id)}">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="page-head">
+    <h1>Payments</h1>
+    <button class="btn primary" data-act="add" data-table="payments">+ Record Payment</button>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">Collected — ${monthLabel(state.month)}</div>
+      <div class="val" style="color:var(--green)">${peso(totalThis)}</div>
+      <div class="sub">${all.filter(p=>p.month===state.month).length} transaction(s)</div></div>
+    <div class="kpi"><div class="lbl">All-time Collected</div>
+      <div class="val">${peso(totalAll)}</div>
+      <div class="sub">${all.length} receipt(s) issued</div></div>
+  </div>
+  <div class="searchbar">
+    <input type="search" id="searchBox" placeholder="Search receipt #, name, ref, method…" value="${esc(state.search)}">
+  </div>
+  <div class="card">
+    ${rows.length ? `<div class="tw"><table>
+      <thead><tr><th>Receipt #</th><th>Date</th><th>Client</th><th>Month</th><th class="right">Amount</th><th>Method</th><th>Reference</th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>` : `<div class="empty"><div class="big">💵</div>No payments recorded yet.</div>`}
+  </div>
+  `;
+}
+
+/* =========================================================
+   NAP BOXES
+   ========================================================= */
+function pageNaps(){
+  const nav = `
+    <div class="subtabs">
+      <button class="subtab ${state.napView==='grid'?'active':''}" data-napview="grid">📋 Grid</button>
+      <button class="subtab ${state.napView==='map'?'active':''}" data-napview="map">🗺 Map</button>
+      <button class="subtab ${state.napView==='splitter'?'active':''}" data-napview="splitter">🔌 Splitter</button>
+    </div>`;
+
+  let body = '';
+  if(state.napView==='grid') body = napGridView();
+  else if(state.napView==='map') body = napMapView();
+  else body = napSplitterView();
+
+  return `
+  <div class="page-head">
+    <h1>NAP Boxes <span class="muted small">(${DB.napBoxes.length})</span></h1>
+    <button class="btn" data-act="addClientHouse">🏠 Add Client House</button>
+    <button class="btn primary" data-act="add" data-table="napBoxes">+ Add NAP Box</button>
+  </div>
+  ${nav}
+  ${body}
+  `;
+}
+
+function napGridView(){
+  const boxes = DB.napBoxes;
+  const cards = boxes.map(b=>{
+    const s = napStats(b);
+    const pct = s.total ? Math.round(s.used/s.total*100) : 0;
+    const cls = s.free<=2 ? 'full' : s.free<=4 ? 'warn' : 'ok';
+    const mapLink = (b.lat && b.lng) ? `https://www.google.com/maps/search/?api=1&query=${b.lat},${b.lng}` : '';
+    const portChips = s.ports.map(p=>{
+      const c = DB.clients.find(x=>x.id===p.clientId);
+      const label = p.status==='Used' && c ? c.name.split(' ')[0] : p.status;
+      return `<div class="port ${p.status.toLowerCase()}" title="Port ${p.port} — ${esc(label)}">
+        <span class="n">${p.port}</span>${esc(label)}
+      </div>`;
+    }).join('');
+
+    return `
+    <div class="card">
+      <div class="card-head">
+        <h2>${esc(b.id)} <span class="muted small">${esc(b.label||'')}</span></h2>
+        <span class="badge ${s.free<=2?'b-red':s.free<=4?'b-amber':'b-green'}">${s.free} free</span>
+      </div>
+      <div class="small muted" style="margin-bottom:8px">
+        📍 ${esc(b.address||'')}${b.landmark?` · ${esc(b.landmark)}`:''}
+        ${b.lat&&b.lng?` · <a href="${mapLink}" target="_blank" rel="noopener" style="color:var(--accent)">${b.lat}, ${b.lng}</a>`:''}
+      </div>
+      <div class="bar ${cls}"><span style="width:${pct}%"></span></div>
+      <div class="flex small muted" style="margin-top:6px">
+        <span>${s.used}/${s.total} used</span><span>·</span>
+        <span>${s.free} free</span>
+        ${s.faulty?`<span>· <span style="color:var(--red)">${s.faulty} faulty</span></span>`:''}
+        <span class="spacer"></span>
+        <span>${esc(b.splitter||'')} · ${esc(b.upstreamId||b.upstream||'')}</span>
+      </div>
+      <div class="ports">${portChips}</div>
+      <div class="flex" style="margin-top:12px">
+        <button class="btn sm" data-act="edit" data-table="napBoxes" data-id="${esc(b.id)}">Edit Box</button>
+        <button class="btn sm" data-act="viewSplitter" data-id="${esc(b.id)}">View Splitter</button>
+        <span class="spacer"></span>
+        <button class="btn sm danger" data-act="del" data-table="napBoxes" data-id="${esc(b.id)}">✕</button>
+      </div>
+      ${b.route?`<div class="note" style="margin-top:10px">🔧 ${esc(b.route)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return cards || `<div class="card"><div class="empty"><div class="big">🔌</div>No NAP boxes yet.</div></div>`;
+}
+
+function napMapView(){
+  return `
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div class="map-help">
+      <b>Map</b><br>
+      Use Add Client House to place a subscriber. Drag markers to reposition; select a NAP box to open its splitter.
+      <div style="margin-top:8px"><button class="btn sm" id="map3dToggle" type="button">Enable 3D</button></div>
+    </div>
+    <div class="map-overlay">
+      <b>Legend</b>
+      <div class="row"><span class="home-marker" style="width:18px;height:18px;font-size:10px">🏠</span> Home Base / OLT</div>
+      <div class="row"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2px solid #fff"></span> NAP box</div>
+      <div class="row"><span style="display:inline-block;width:22px;border-top:2px dashed #3b82f6"></span> Uplink</div>
+      <div class="row"><span class="client-house-marker" style="width:18px;height:18px;font-size:10px">⌂</span> Client house</div>
+      <div class="row"><span style="display:inline-block;width:22px;border-top:2px dashed #22c55e"></span> Client drop
+      </div>
+    </div>
+  </div>`;
+}
+
+async function initMap(){
+  const el = document.getElementById('map');
+  if(!el) return;
+  const hb = DB.settings.homeBase;
+  if(mapInstance){ mapInstance.remove(); mapInstance = null; }
+  try{
+    const response = await fetch('/api/config');
+    if(!response.ok) throw new Error('Could not load map configuration');
+    const {mapboxAccessToken} = await response.json();
+    if(!mapboxAccessToken){
+      el.innerHTML = '<div class="empty">Add your Mapbox public token to <code>.env</code> as MAPBOX_ACCESS_TOKEN, then restart the app.</div>';
+      return;
+    }
+    mapboxgl.accessToken = mapboxAccessToken;
+    mapInstance = new mapboxgl.Map({
+      container:el,
+      style:'mapbox://styles/mapbox/streets-v12',
+      center:[Number(hb.lng), Number(hb.lat)],
+      zoom:15,
+      pitch:state.map3d ? 55 : 0,
+      antialias:true
+    });
+    mapInstance.addControl(new mapboxgl.NavigationControl({visualizePitch:true}), 'top-right');
+    mapHoverPopup = new mapboxgl.Popup({closeButton:false, closeOnClick:false, offset:8});
+    mapInstance.on('load', ()=>{
+      addMapBuildings();
+      renderMapMarkers();
+      setMap3dMode(state.map3d, false);
+      if(state.mapPlaceClient){
+        mapInstance.once('click', event=>{
+          state.mapPlaceClient = false;
+          openClientHouseForm(event.lngLat.lat, event.lngLat.lng);
+        });
+      }
+      document.getElementById('map3dToggle')?.addEventListener('click', ()=>setMap3dMode(!state.map3d));
+      mapInstance.resize();
+    });
+  }catch(error){
+    console.error('Mapbox failed to load', error);
+    el.innerHTML = '<div class="empty">Mapbox could not load. Check your public token and internet connection.</div>';
+  }
+}
+
+function addMapBuildings(){
+  if(mapInstance.getLayer('napbox-3d-buildings')) return;
+  mapInstance.addLayer({
+    id:'napbox-3d-buildings',
+    source:'composite',
+    'source-layer':'building',
+    filter:['==',['get','extrude'],'true'],
+    minzoom:15,
+    type:'fill-extrusion',
+    paint:{
+      'fill-extrusion-color':'#94a3b8',
+      'fill-extrusion-height':['interpolate',['linear'],['zoom'],15,0,['get','height']],
+      'fill-extrusion-base':['interpolate',['linear'],['zoom'],15,0,['get','min_height']],
+      'fill-extrusion-opacity':0.72
+    }
+  });
+}
+
+function setMap3dMode(enabled, animate=true){
+  if(!mapInstance) return;
+  state.map3d = enabled;
+  mapInstance.easeTo({pitch:enabled ? 55 : 0, duration:animate ? 500 : 0});
+  if(mapInstance.getLayer('napbox-3d-buildings')){
+    mapInstance.setLayoutProperty('napbox-3d-buildings', 'visibility', enabled ? 'visible' : 'none');
+  }
+  const button = document.getElementById('map3dToggle');
+  if(button) button.textContent = enabled ? 'Enable 2D' : 'Enable 3D';
+}
+
+function addMapLine(coordinates, color, dashed, tooltip){
+  const id = `napbox-line-${mapLines.length}`;
+  const layerId = `${id}-layer`;
+  mapInstance.addSource(id, {
+    type:'geojson',
+    data:{type:'Feature', geometry:{type:'LineString', coordinates}, properties:{}}
+  });
+  mapInstance.addLayer({
+    id:layerId,
+    type:'line',
+    source:id,
+    paint:{
+      'line-color':color,
+      'line-width':dashed ? 2 : 3,
+      'line-opacity':0.8,
+      ...(dashed ? {'line-dasharray':[2,2]} : {})
+    }
+  });
+  const onEnter = event=>{
+    mapInstance.getCanvas().style.cursor = 'pointer';
+    mapHoverPopup.setLngLat(event.lngLat).setHTML(`<span class="small">${esc(tooltip)}</span>`).addTo(mapInstance);
+  };
+  const onLeave = ()=>{
+    mapInstance.getCanvas().style.cursor = '';
+    mapHoverPopup.remove();
+  };
+  mapInstance.on('mouseenter', layerId, onEnter);
+  mapInstance.on('mouseleave', layerId, onLeave);
+  mapLineEvents.push({layerId, onEnter, onLeave});
+  mapLines.push(id);
+}
+
+function renderMapMarkers(){
+  if(!mapInstance) return;
+  Object.values(mapMarkers).forEach(marker=>marker.remove());
+  mapLineEvents.forEach(({layerId,onEnter,onLeave})=>{
+    mapInstance.off('mouseenter', layerId, onEnter);
+    mapInstance.off('mouseleave', layerId, onLeave);
+  });
+  mapLines.forEach(id=>{
+    mapInstance.removeLayer(`${id}-layer`);
+    mapInstance.removeSource(id);
+  });
+  mapMarkers = {}; mapLines = []; mapLineEvents = [];
+
+  const hb = DB.settings.homeBase;
+  const homeElement = document.createElement('div');
+  homeElement.className = 'home-marker';
+  homeElement.textContent = '🏠';
+  const homeMarker = new mapboxgl.Marker({element:homeElement, draggable:true, anchor:'center'})
+    .setLngLat([Number(hb.lng), Number(hb.lat)])
+    .setPopup(new mapboxgl.Popup({offset:20}).setHTML(`<b>${esc(hb.name)}</b><br><span class="small muted">Drag to reposition</span>`))
+    .addTo(mapInstance);
+  homeMarker.on('dragend', ()=>{
+    const p = homeMarker.getLngLat();
+    DB.settings.homeBase.lat = p.lat;
+    DB.settings.homeBase.lng = p.lng;
+    save(); renderMapMarkers();
+  });
+  mapMarkers['home'] = homeMarker;
+
+  DB.napBoxes.forEach(box=>{
+    if(box.lat==='' || box.lng==='' || !Number.isFinite(Number(box.lat)) || !Number.isFinite(Number(box.lng))) return;
+    let sLat = hb.lat, sLng = hb.lng;
+    let uplinkName = hb.name;
+    if(box.uplinkId){
+      const p = DB.napBoxes.find(b=>b.id===box.uplinkId);
+      if(p && p.lat && p.lng){ sLat = p.lat; sLng = p.lng; uplinkName = p.name; }
+    }
+    const dist = getDistanceStr(sLat, sLng, box.lat, box.lng);
+    addMapLine([[Number(sLng),Number(sLat)],[Number(box.lng),Number(box.lat)]], box.color || '#3b82f6', Boolean(box.uplinkId), dist);
+
+    const element = document.createElement('div');
+    element.className = 'name-badge-marker';
+    element.style.background = box.color || '#3b82f6';
+    element.textContent = box.id;
+    const m = new mapboxgl.Marker({element, draggable:true, anchor:'center'})
+      .setLngLat([Number(box.lng),Number(box.lat)])
+      .addTo(mapInstance);
+    m.on('dragend', ()=>{
+      const p = m.getLngLat();
+      const b = DB.napBoxes.find(x=>x.id===box.id);
+      if(b){ b.lat = p.lat; b.lng = p.lng; save(); renderMapMarkers(); }
+    });
+    m.setPopup(new mapboxgl.Popup({offset:20}).setHTML(`
+      <b>${esc(box.id)}</b><br>
+      <span style="font-size:11px;color:#94a3b8">${esc(box.label||'')}</span><br>
+      <span style="font-size:11px;color:#94a3b8">Uplink: ${esc(uplinkName)} · ${esc(dist)}</span><br><br>
+      <button onclick="openSplitterFromMap('${esc(box.id)}')"
+        style="background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
+        Open Splitter
+      </button>
+    `));
+    mapMarkers[box.id] = m;
+  });
+
+  DB.clients.forEach(client=>{
+    if(client.lat==='' || client.lng==='' || client.lat==null || client.lng==null ||
+       !Number.isFinite(Number(client.lat)) || !Number.isFinite(Number(client.lng))) return;
+    const lat = Number(client.lat), lng = Number(client.lng);
+    const nap = DB.napBoxes.find(box=>box.id===client.napId);
+    if(nap && nap.lat!=='' && nap.lng!=='' && Number.isFinite(Number(nap.lat)) && Number.isFinite(Number(nap.lng))){
+      const distance = getDistanceStr(nap.lat, nap.lng, lat, lng);
+      addMapLine([[Number(nap.lng),Number(nap.lat)],[lng,lat]], '#22c55e', true, `Client drop · ${distance}`);
+    }
+
+    const element = document.createElement('div');
+    element.className = 'client-house-marker';
+    element.textContent = '⌂';
+    const marker = new mapboxgl.Marker({element, draggable:true, anchor:'center'})
+      .setLngLat([lng,lat])
+      .addTo(mapInstance);
+    marker.on('dragend', ()=>{
+      const point = marker.getLngLat();
+      client.lat = point.lat;
+      client.lng = point.lng;
+      save(); renderMapMarkers();
+    });
+    const connection = nap ? `${esc(nap.id)} · port ${esc(client.port||'—')}` : 'Not connected to a NAP';
+    marker.setPopup(new mapboxgl.Popup({offset:20}).setHTML(`
+      <b>${esc(client.name)}</b><br>
+      <span style="font-size:11px;color:#94a3b8">${esc(client.plan||'')}</span><br>
+      <span style="font-size:11px;color:#94a3b8">${connection}</span><br><br>
+      <button onclick="openClientFromMap(${esc(JSON.stringify(client.id))})"
+        style="background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
+        Edit Client
+      </button>
+    `));
+    mapMarkers[`client:${client.id}`] = marker;
+  });
+}
+
+function openClientFromMap(id){
+  state.tab = 'clients';
+  state.search = '';
+  render();
+  openForm('clients', id);
+}
+
+function openClientHouseForm(lat, lng){
+  const coordinates = {lat:Number(lat).toFixed(6), lng:Number(lng).toFixed(6)};
+  if(!DB.clients.length){ openForm('clients', null, coordinates); return; }
+  state.pendingClientHouse = coordinates;
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-head">
+      <h2>Place Client House</h2>
+      <button class="btn sm" data-act="closeModal">✕</button>
+    </div>
+    <label class="field"><span>Choose Client</span>
+      <select id="houseClientPicker">
+        ${DB.clients.map(c=>`<option value="${esc(c.id)}">${esc(c.name)} · ${esc(c.pppoe||c.id)}</option>`).join('')}
+      </select>
+    </label>
+    <div class="note">The map location will be saved on this client. Assign a NAP box and port in the next form to connect it.</div>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-act="closeModal">Cancel</button>
+      <button type="button" class="btn" data-act="newHouseClient">New Client</button>
+      <button type="button" class="btn primary" data-act="continueHouse">Continue</button>
+    </div>`;
+  document.getElementById('backdrop').classList.add('open');
+}
+
+function openSplitterFromMap(id){
+  state.napView = 'splitter';
+  state.selectedNapId = id;
+  render();
+}
+
+function napSplitterView(){
+  if(!DB.napBoxes.length){
+    return `<div class="card"><div class="empty"><div class="big">🔌</div>No NAP boxes yet.</div></div>`;
+  }
+  if(!state.selectedNapId || !DB.napBoxes.find(b=>b.id===state.selectedNapId)){
+    state.selectedNapId = DB.napBoxes[0].id;
+  }
+  const box = DB.napBoxes.find(b=>b.id===state.selectedNapId);
+  const s = napStats(box);
+
+  const selector = `
+    <div class="card" style="margin-bottom:12px">
+      <label class="field" style="margin-bottom:0">
+        <span>Select NAP Box</span>
+        <select id="napPicker">
+          ${DB.napBoxes.map(b=>`<option value="${esc(b.id)}" ${b.id===box.id?'selected':''}>${esc(b.id)} — ${esc(b.label||'')} (${napStats(b).used}/${napStats(b).total})</option>`).join('')}
+        </select>
+      </label>
+    </div>`;
+
+  const cols = box.totalPorts<=8 ? 4 : box.totalPorts<=16 ? 8 : 12;
+
+  const ports = s.ports.map(p=>{
+    const c = DB.clients.find(x=>x.id===p.clientId);
+    const status = p.status==='Used' ? (c && c.status==='Suspended' ? 'warning' : 'connected')
+      : p.status==='Faulty' ? 'broken'
+      : p.status==='Reserved' ? 'warning'
+      : 'available';
+    const paid = c ? billingRows().filter(r=>r.clientId===c.id).every(r=>r.balance<=0) : false;
+    const tick = status==='connected'
+      ? `<span class="tick ${paid?'paid':'unpaid'}">${paid?'PAID':'UNPAID'}</span>` : '';
+    const label = c ? esc(c.name) : (p.status==='Faulty' ? 'BROKEN' : p.status==='Reserved' ? 'RESERVED' : 'AVAILABLE');
+    return `
+      <div class="port-cell ${status}" data-act="openPort" data-napid="${esc(box.id)}" data-port="${p.port}" title="Port ${p.port} — ${label}">
+        <div class="num">${p.port}</div>
+        <div class="connector"></div>
+        <div class="body"></div>
+        ${tick}
+      </div>`;
+  }).join('');
+
+  const mapLink = (box.lat && box.lng) ? `https://www.google.com/maps/search/?api=1&query=${box.lat},${box.lng}` : '';
+
+  return `
+  ${selector}
+  <div class="card" style="padding:10px 14px">
+    <div class="flex small muted">
+      <strong style="color:var(--ink)">${esc(box.id)}</strong>
+      <span>${esc(box.label||'')}</span>
+      <span class="spacer"></span>
+      <span>${s.used}/${s.total} used · ${s.free} free</span>
+    </div>
+    <div class="tiny muted" style="margin-top:4px">
+      📍 ${esc(box.address||'')}${box.landmark?` · ${esc(box.landmark)}`:''}
+      ${mapLink?` · <a href="${mapLink}" target="_blank" rel="noopener" style="color:var(--accent)">map</a>`:''}
+    </div>
+  </div>
+  <div class="splitter-wrap">
+    <div class="splitter">
+      <div class="hole left1"></div>
+      <div class="hole left2"></div>
+      <div class="hole right1"></div>
+      <div class="hole right2"></div>
+      <div class="splitter-label">FIBER PORTS · ${box.splitter||''}</div>
+      <div class="splitter-id">${esc(box.id)}</div>
+      <div class="splitter-ports" style="grid-template-columns:repeat(${cols}, 1fr)">
+        ${ports}
+      </div>
+      <div class="splitter-foot">
+        <span><span class="dot" style="background:#168bff"></span>Available</span>
+        <span><span class="dot" style="background:#22c55e"></span>Connected</span>
+        <span><span class="dot" style="background:#facc15"></span>Suspended</span>
+        <span><span class="dot" style="background:#9ca3af"></span>Broken</span>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+/* ------------------------------ complaints ------------------------------ */
+function pageComplaints(){
+  const rows = [...DB.complaints].sort((a,b)=>b.date.localeCompare(a.date));
+  const body = rows.map(t=>{
+    const c = DB.clients.find(x=>x.id===t.clientId);
+    const stCls = t.status==='Resolved'||t.status==='Closed' ? 'b-green'
+      : t.status==='In Progress' ? 'b-amber' : 'b-red';
+    return `<tr>
+      <td><strong>${esc(t.id)}</strong></td>
+      <td>${esc(t.date)}</td>
+      <td>${esc(c?c.name:t.clientId)}</td>
+      <td>${esc(t.category||'')}<div class="tiny muted wrap">${esc(t.description||'')}</div></td>
+      <td>${esc(t.tech||'—')}</td>
+      <td><span class="badge ${stCls}">${esc(t.status)}</span></td>
+      <td>${esc(t.fixedDate||'—')}</td>
+      <td class="right"><div class="row-actions">
+        <button class="btn sm" data-act="edit" data-table="complaints" data-id="${esc(t.id)}">Edit</button>
+        <button class="btn sm danger" data-act="del" data-table="complaints" data-id="${esc(t.id)}">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="page-head">
+    <h1>Complaints / Repair Log</h1>
+    <button class="btn primary" data-act="add" data-table="complaints">+ New Ticket</button>
+  </div>
+  <div class="card">
+    ${rows.length ? `<div class="tw"><table>
+      <thead><tr><th>Ticket</th><th>Reported</th><th>Client</th><th>Issue</th><th>Tech</th><th>Status</th><th>Fixed</th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>` : `<div class="empty"><div class="big">🛠</div>No tickets yet.</div>`}
+  </div>
+  `;
+}
+
+/* ------------------------------ installs ------------------------------ */
+function pageInstalls(){
+  const rows = [...DB.installs].sort((a,b)=>b.date.localeCompare(a.date));
+  const body = rows.map(r=>{
+    const stCls = r.status==='Completed' ? 'b-green'
+      : r.status==='Scheduled' ? 'b-blue'
+      : r.status==='Cancelled' ? 'b-gray' : 'b-amber';
+    return `<tr>
+      <td><strong>${esc(r.id)}</strong></td>
+      <td>${esc(r.date)}</td>
+      <td><span class="badge b-gray">${esc(r.type)}</span></td>
+      <td class="wrap">${esc(r.name)}<div class="tiny muted">${esc(r.contact||'')}</div></td>
+      <td class="wrap">${esc(r.address||'')}</td>
+      <td>${esc(r.plan||'—')}</td>
+      <td>${esc(r.napId||'—')}</td>
+      <td><span class="badge ${stCls}">${esc(r.status)}</span></td>
+      <td>${esc(r.schedule||'—')}</td>
+      <td class="right"><div class="row-actions">
+        <button class="btn sm" data-act="edit" data-table="installs" data-id="${esc(r.id)}">Edit</button>
+        <button class="btn sm danger" data-act="del" data-table="installs" data-id="${esc(r.id)}">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="page-head">
+    <h1>Install / Disconnection Requests</h1>
+    <button class="btn primary" data-act="add" data-table="installs">+ New Request</button>
+  </div>
+  <div class="card">
+    ${rows.length ? `<div class="tw"><table>
+      <thead><tr><th>ID</th><th>Date</th><th>Type</th><th>Name</th><th>Address</th><th>Plan</th><th>NAP</th><th>Status</th><th>Schedule</th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>` : `<div class="empty"><div class="big">📥</div>No requests yet.</div>`}
+  </div>
+  `;
+}
+
+/* ------------------------------ inventory ------------------------------ */
+function pageInventory(){
+  const rows = [...DB.inventory].sort((a,b)=>String(a.category).localeCompare(String(b.category)));
+  const body = rows.map(i=>{
+    const c = DB.clients.find(x=>x.id===i.clientId);
+    const low = num(i.qty) <= 5 && i.status==='In Stock';
+    return `<tr>
+      <td><strong>${esc(i.id)}</strong></td>
+      <td><span class="badge b-gray">${esc(i.category)}</span></td>
+      <td>${esc(i.model||'')}<div class="tiny muted">${esc(i.serial||'')}</div></td>
+      <td class="right"><span class="${low?'badge b-red':''}">${num(i.qty)} ${esc(i.unit||'')}</span></td>
+      <td>${esc(i.location||'')}</td>
+      <td>${c?esc(c.name):'<span class="muted">—</span>'}</td>
+      <td><span class="badge ${i.status==='In Stock'?'b-green':'b-blue'}">${esc(i.status)}</span></td>
+      <td class="right"><div class="row-actions">
+        <button class="btn sm" data-act="edit" data-table="inventory" data-id="${esc(i.id)}">Edit</button>
+        <button class="btn sm danger" data-act="del" data-table="inventory" data-id="${esc(i.id)}">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="page-head">
+    <h1>Inventory</h1>
+    <button class="btn primary" data-act="add" data-table="inventory">+ Add Item</button>
+  </div>
+  <div class="card">
+    ${rows.length ? `<div class="tw"><table>
+      <thead><tr><th>ID</th><th>Category</th><th>Model / Serial</th><th class="right">Qty</th><th>Location</th><th>Assigned To</th><th>Status</th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>` : `<div class="empty"><div class="big">📦</div>No items yet.</div>`}
+  </div>
+  `;
+}
+
+/* ------------------------------ settings ------------------------------ */
+function pageSettings(){
+  const s = DB.settings;
+  const hb = s.homeBase;
+  const counts = [
+    ['Clients', DB.clients.length],
+    ['Invoices', DB.billing.length],
+    ['Payments', DB.payments.length],
+    ['Receipts issued', DB.payments.filter(p=>p.receiptNo).length],
+    ['NAP Boxes', DB.napBoxes.length],
+    ['NAP Ports', DB.napPorts.length],
+    ['Tickets', DB.complaints.length],
+    ['Requests', DB.installs.length],
+    ['Inventory', DB.inventory.length],
+  ];
+
+  return `
+  <div class="page-head"><h1>Settings</h1></div>
+
+  <div class="card">
+    <div class="card-head"><h2>Business Info (for receipts)</h2></div>
+    <label class="field"><span>Business Name</span>
+      <input id="setBusiness" value="${esc(s.business||'')}" placeholder="My ISP"></label>
+    <label class="field"><span>Tagline</span>
+      <input id="setTagline" value="${esc(s.tagline||'')}" placeholder="Fiber Internet Service Provider"></label>
+    <label class="field"><span>Address</span>
+      <input id="setAddress" value="${esc(s.address||'')}" placeholder="Brgy. San Isidro, Calamba, Laguna"></label>
+    <label class="field"><span>Contact (phone · email)</span>
+      <input id="setContact" value="${esc(s.contact||'')}" placeholder="0917-000-0000 · myisp@example.com"></label>
+    <label class="field"><span>TIN (optional)</span>
+      <input id="setTin" value="${esc(s.tin||'')}" placeholder="000-000-000-000"></label>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Plans & Billing</h2></div>
+    <div class="grid2">
+      ${tagEditorMarkup('plans','Plans',s.plans||[])}
+      ${tagEditorMarkup('methods','Payment Methods',s.methods||[])}
+    </div>
+    <label class="field"><span>Due Day of Month</span>
+      <input id="setDueDay" type="number" min="1" max="28" value="${esc(s.dueDay||5)}"></label>
+    <button class="btn primary block" data-act="saveSettings">Save Settings</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Home Base / OLT</h2></div>
+    <div class="note" style="margin-bottom:12px">
+      This is the marker on the map that NAP boxes connect to by default. Drag it on the map to reposition.
+    </div>
+    <label class="field"><span>Name</span>
+      <input id="setHomeName" value="${esc(hb.name||'')}"></label>
+    <div class="grid2">
+      <label class="field"><span>Latitude</span>
+        <input id="setHomeLat" type="number" step="any" value="${esc(hb.lat)}"></label>
+      <label class="field"><span>Longitude</span>
+        <input id="setHomeLng" type="number" step="any" value="${esc(hb.lng)}"></label>
+    </div>
+    <button class="btn primary block" data-act="saveHome">Save Home Base</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Backup & Restore</h2></div>
+    <div class="note" style="margin-bottom:12px">
+      Changes are saved to a database on this device and do not sync to other devices. Export a backup
+      regularly and keep it somewhere safe. Clearing browser data will erase the local database.
+    </div>
+    <button class="btn primary block" id="btnBackup2" style="margin-bottom:8px">⬇ Download Backup (JSON)</button>
+    <button class="btn block" id="btnRestore2" style="margin-bottom:8px">⬆ Restore from Backup</button>
+    <button class="btn block" id="btnCsv" style="margin-bottom:8px">📄 Export Clients as CSV</button>
+    <hr>
+    <button class="btn danger block" data-act="resetDemo">↺ Restore Imported PPPoE List</button>
+    <button class="btn danger block" data-act="wipe" style="margin-top:8px">🗑 Erase Everything</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Records</h2></div>
+    <div class="tw"><table>
+      <tbody>${counts.map(([k,v])=>`<tr><td>${k}</td><td class="right"><strong>${v}</strong></td></tr>`).join('')}</tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Privacy Reminders</h2></div>
+    <div class="note">
+      • Client data is sensitive under RA 10173 (Data Privacy Act).<br>
+      • Use a dedicated device or browser profile for this app.<br>
+      • Only share backups with staff who need them.<br>
+      • Password-protect backup files before storing in the cloud.<br>
+      • Delete client records you no longer need.
+    </div>
+  </div>
+  `;
+}
+
+function tagEditorMarkup(key, label, values){
+  const chips = values.map(value=>`
+    <span class="tag-chip" data-tag-value="${esc(value)}">
+      <span>${esc(value)}</span>
+      <button class="tag-remove" type="button" data-tag-remove aria-label="Remove ${esc(value)}">×</button>
+    </span>`).join('');
+  return `<label class="field"><span>${esc(label)}</span>
+    <div class="tag-editor" data-tag-editor="${esc(key)}">
+      ${chips}
+      <input type="text" data-tag-input="${esc(key)}" placeholder="Add ${esc(label.toLowerCase())}" autocomplete="off">
+      <button class="btn tag-add" type="button" data-tag-add="${esc(key)}" title="Add ${esc(label.toLowerCase())}" aria-label="Add ${esc(label.toLowerCase())}">+</button>
+    </div>
+  </label>`;
+}
+
+function addEditorTag(input){
+  const value = input.value.trim();
+  if(!value) return;
+  const editor = input.closest('[data-tag-editor]');
+  const duplicate = [...editor.querySelectorAll('[data-tag-value]')]
+    .some(chip=>chip.dataset.tagValue.toLowerCase()===value.toLowerCase());
+  input.value = '';
+  if(duplicate) return;
+
+  const chip = document.createElement('span');
+  chip.className = 'tag-chip';
+  chip.dataset.tagValue = value;
+  const text = document.createElement('span');
+  text.textContent = value;
+  const remove = document.createElement('button');
+  remove.className = 'tag-remove';
+  remove.type = 'button';
+  remove.dataset.tagRemove = '';
+  remove.setAttribute('aria-label', `Remove ${value}`);
+  remove.textContent = '×';
+  chip.append(text, remove);
+  editor.insertBefore(chip, input);
+}
+
+function readEditorTags(key){
+  const editor = document.querySelector(`[data-tag-editor="${key}"]`);
+  const input = editor.querySelector('[data-tag-input]');
+  addEditorTag(input);
+  return [...editor.querySelectorAll('[data-tag-value]')].map(chip=>chip.dataset.tagValue);
+}
+
+/* ------------------------------ month options ------------------------------ */
+function monthOptions(){
+  const set = new Set(DB.billing.map(b=>b.month));
+  set.add(ym(new Date()));
+  for(let i=-6;i<=6;i++){
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth()+i);
+    set.add(ym(d));
+  }
+  return [...set].filter(Boolean).sort().reverse();
+}
+
+/* =========================================================================
+   RECEIPT
+   ========================================================================= */
+function openReceipt(paymentId){
+  const p = DB.payments.find(x=>String(x.id)===String(paymentId));
+  if(!p){ toast('Payment not found'); return; }
+  if(!p.receiptNo){ p.receiptNo = nextReceiptNo(); save(); }
+  state.currentReceiptId = p.id;
+
+  const c = DB.clients.find(x=>x.id===p.clientId) || {};
+  const s = DB.settings;
+
+  const initial = (s.business||'ISP').trim().charAt(0).toUpperCase();
+  const dt = p.date ? new Date(p.date) : new Date();
+  const dateStr = iso(dt);
+  const timeStr = p.createdAt ? new Date(p.createdAt).toTimeString().slice(0,5) : nowTime();
+
+  // amounts
+  const amount = num(p.amount);
+  const invoice = DB.billing.find(b=>b.clientId===p.clientId && b.month===p.month);
+  const monthDue = invoice ? num(invoice.amountDue) : null;
+  // sum all payments for this invoice
+  const paidToInvoice = DB.payments
+    .filter(x=>x.clientId===p.clientId && x.month===p.month)
+    .reduce((s,x)=>s+num(x.amount),0);
+  const monthBalance = monthDue!=null ? Math.max(0, monthDue - paidToInvoice) : null;
+
+  const html = `
+  <div class="receipt-paper" id="receiptPaper">
+    <div class="rp-header">
+      <div class="rp-logo">${esc(initial)}</div>
+      <div class="rp-biz">${esc(s.business||'')}</div>
+      ${s.tagline?`<div class="rp-tagline">${esc(s.tagline)}</div>`:''}
+      ${s.address?`<div class="rp-addr">${esc(s.address)}</div>`:''}
+      ${s.contact?`<div class="rp-contact">${esc(s.contact)}</div>`:''}
+      ${s.tin?`<div class="rp-contact">TIN: ${esc(s.tin)}</div>`:''}
+    </div>
+
+    <div class="rp-divider solid">========================================</div>
+    <div class="rp-title">OFFICIAL RECEIPT</div>
+    <div class="rp-divider solid">========================================</div>
+
+    <div class="rp-row"><span>Receipt No:</span><span>${esc(p.receiptNo)}</span></div>
+    <div class="rp-row"><span>Date:</span><span>${esc(dateStr)}</span></div>
+    <div class="rp-row"><span>Time:</span><span>${esc(timeStr)}</span></div>
+
+    <div class="rp-divider">----------------------------------------</div>
+
+    <div class="rp-label">RECEIVED FROM</div>
+    <div class="rp-name">${esc(c.name||p.clientId)}</div>
+    <div class="rp-row"><span>Client ID:</span><span>${esc(c.id||p.clientId)}</span></div>
+    ${c.contact?`<div class="rp-row"><span>Contact:</span><span>${esc(c.contact)}</span></div>`:''}
+    ${(c.barangay||c.city)?`<div class="rp-row"><span>Address:</span><span>${esc([c.barangay,c.city,c.province].filter(Boolean).join(', '))}</span></div>`:''}
+
+    <div class="rp-divider">----------------------------------------</div>
+
+    <div class="rp-label">FOR</div>
+    <div class="rp-row"><span>Billing Month:</span><span>${esc(monthLabel(p.month))}</span></div>
+    ${c.plan?`<div class="rp-row"><span>Plan:</span><span>${esc(c.plan)}</span></div>`:''}
+    ${monthDue!=null?`<div class="rp-row"><span>Amount Due:</span><span>${peso(monthDue)}</span></div>`:''}
+
+    <div class="rp-divider">----------------------------------------</div>
+
+    <div class="rp-row big"><span>AMOUNT PAID:</span><span>${peso(amount)}</span></div>
+
+    <div class="rp-row"><span>Method:</span><span>${esc(p.method||'—')}</span></div>
+    ${p.ref?`<div class="rp-row"><span>Reference No:</span><span>${esc(p.ref)}</span></div>`:''}
+    ${monthBalance!=null?`<div class="rp-row"><span>Invoice Balance:</span><span>${monthBalance>0?peso(monthBalance):'FULLY PAID'}</span></div>`:''}
+    <div class="rp-row"><span>Received By:</span><span>${esc(p.receivedBy||'Admin')}</span></div>
+    ${p.notes?`<div class="rp-row"><span>Notes:</span><span>${esc(p.notes)}</span></div>`:''}
+
+    <div class="rp-divider solid">========================================</div>
+
+    <div class="rp-thanks">THANK YOU!</div>
+    <div class="rp-footer">Please keep this receipt for your records.</div>
+    <div class="rp-footer">This serves as proof of payment.</div>
+
+    <div class="rp-barcode">*${esc(p.receiptNo)}*</div>
+  </div>`;
+
+  document.getElementById('receiptPaperMount').innerHTML = html;
+  document.getElementById('receiptBackdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeReceipt(){
+  document.getElementById('receiptBackdrop').classList.remove('open');
+  document.getElementById('receiptPaperMount').innerHTML = '';
+  document.body.style.overflow = '';
+  state.currentReceiptId = null;
+}
+
+function receiptPlainText(){
+  const p = DB.payments.find(x=>String(x.id)===String(state.currentReceiptId));
+  if(!p) return '';
+  const c = DB.clients.find(x=>x.id===p.clientId) || {};
+  const s = DB.settings;
+  const line = '----------------------------------------';
+  const dline = '========================================';
+
+  return [
+    s.business,
+    s.tagline||'',
+    s.address||'',
+    s.contact||'',
+    dline,
+    'OFFICIAL RECEIPT',
+    dline,
+    `Receipt No: ${p.receiptNo}`,
+    `Date: ${p.date}`,
+    `Time: ${nowTime()}`,
+    line,
+    'RECEIVED FROM',
+    c.name || p.clientId,
+    `Client ID: ${c.id || p.clientId}`,
+    c.contact?`Contact: ${c.contact}`:'',
+    c.barangay?`Address: ${[c.barangay,c.city,c.province].filter(Boolean).join(', ')}`:'',
+    line,
+    'FOR',
+    `Billing Month: ${monthLabel(p.month)}`,
+    c.plan?`Plan: ${c.plan}`:'',
+    line,
+    `AMOUNT PAID: ${peso(p.amount)}`,
+    `Method: ${p.method||'—'}`,
+    p.ref?`Reference: ${p.ref}`:'',
+    `Received By: ${p.receivedBy||'Admin'}`,
+    dline,
+    'THANK YOU!',
+    'Keep this receipt for your records.',
+    dline
+  ].filter(Boolean).join('\n');
+}
+
+async function copyReceiptText(){
+  const txt = receiptPlainText();
+  try{
+    await navigator.clipboard.writeText(txt);
+    toast('Receipt copied to clipboard');
+  }catch(e){
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('Receipt copied to clipboard');
+  }
+}
+
+async function shareReceipt(){
+  const p = DB.payments.find(x=>String(x.id)===String(state.currentReceiptId));
+  if(!p) return;
+  const c = DB.clients.find(x=>x.id===p.clientId) || {};
+  const s = DB.settings;
+  const text = `*${s.business}*\nOfficial Receipt ${p.receiptNo}\n\nReceived from: ${c.name||p.clientId}\nAmount: ${peso(p.amount)}\nFor: ${monthLabel(p.month)}\nMethod: ${p.method}\n${p.ref?'Ref: '+p.ref+'\n':''}Date: ${p.date}\n\nThank you!`;
+
+  if(navigator.share){
+    try{
+      await navigator.share({ title:`Receipt ${p.receiptNo}`, text });
+      return;
+    }catch(e){ /* fallthrough */ }
+  }
+  // fallback: copy
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('Receipt copied — paste to send');
+  }catch(e){
+    toast('Sharing not supported');
+  }
+}
+
+/* =========================================================================
+   FORMS
+   ========================================================================= */
+const SCHEMAS = {
+  clients: {
+    title:'Client',
+    fields:[
+      {k:'id',   l:'Client ID', t:'text', req:true, def:()=>nextId('C', DB.clients)},
+      {k:'name', l:'Full Name', t:'text', req:true},
+      {k:'barangay', l:'Address / Barangay', t:'text'},
+      {k:'lat', l:'House GPS Latitude', t:'number', step:'any'},
+      {k:'lng', l:'House GPS Longitude', t:'number', step:'any'},
+      {k:'city', l:'City / Municipality', t:'text'},
+      {k:'province', l:'Province', t:'text'},
+      {k:'contact', l:'Contact Number', t:'tel'},
+      {k:'plan', l:'Plan / Speed', t:'select', opts:()=>DB.settings.plans||[]},
+      {k:'rate', l:'Monthly Rate (₱)', t:'number', req:true},
+      {k:'installed', l:'Installation Date', t:'date'},
+      {k:'napId', l:'NAP Box', t:'select', opts:()=>DB.napBoxes.map(b=>b.id)},
+      {k:'port', l:'NAP Port No.', t:'number'},
+      {k:'onu', l:'ONU / Router Serial', t:'text'},
+      {k:'mac', l:'MAC Address', t:'text'},
+      {k:'pppoe', l:'PPPoE / Account Username', t:'text'},
+      {k:'service', l:'Service', t:'select', opts:()=>['pppoe'], def:()=>'pppoe'},
+      {k:'remoteIpv6Prefix', l:'Remote IPv6 Prefix', t:'text'},
+      {k:'status', l:'Status', t:'select', opts:()=>['Active','Suspended','Disconnected'], def:()=>'Active'},
+      {k:'notes', l:'Notes', t:'textarea'},
+    ]
+  },
+  billing: {
+    title:'Invoice',
+    fields:[
+      {k:'id', l:'Invoice ID', t:'text', req:true, def:()=>`INV-${state.month}-${uid()}`},
+      {k:'month', l:'Billing Month (YYYY-MM)', t:'text', req:true, def:()=>state.month},
+      {k:'clientId', l:'Client', t:'client', req:true},
+      {k:'dueDate', l:'Due Date', t:'date', req:true, def:()=>`${state.month}-${pad(DB.settings.dueDay||5)}`},
+      {k:'amountDue', l:'Amount Due (₱)', t:'number', req:true},
+      {k:'remarks', l:'Remarks', t:'text'},
+    ]
+  },
+  payments: {
+    title:'Payment',
+    fields:[
+      {k:'id', l:'Payment ID', t:'text', req:true, def:()=>nextId('P', DB.payments)},
+      {k:'receiptNo', l:'Receipt No.', t:'text', def:()=>nextReceiptNo()},
+      {k:'date', l:'Date Paid', t:'date', req:true, def:()=>todayISO()},
+      {k:'clientId', l:'Client', t:'client', req:true},
+      {k:'month', l:'Billing Month (YYYY-MM)', t:'text', req:true, def:()=>state.month},
+      {k:'amount', l:'Amount Paid (₱)', t:'number', req:true},
+      {k:'method', l:'Payment Method', t:'select', opts:()=>DB.settings.methods||[], def:()=>'Cash'},
+      {k:'ref', l:'Reference Number', t:'text'},
+      {k:'receivedBy', l:'Received By', t:'text', def:()=>'Admin'},
+      {k:'notes', l:'Notes', t:'text'},
+    ]
+  },
+  napBoxes: {
+    title:'NAP Box',
+    fields:[
+      {k:'id', l:'NAP Box ID', t:'text', req:true, def:()=>nextId('NAP', DB.napBoxes)},
+      {k:'label', l:'Label / Name', t:'text'},
+      {k:'address', l:'Location / Address', t:'text'},
+      {k:'landmark', l:'Landmark', t:'text'},
+      {k:'lat', l:'GPS Latitude', t:'number', step:'any'},
+      {k:'lng', l:'GPS Longitude', t:'number', step:'any'},
+      {k:'totalPorts', l:'Total Ports', t:'number', req:true, def:()=>8},
+      {k:'uplinkId', l:'Uplink (NAP Box)', t:'select', opts:()=>DB.napBoxes.map(b=>b.id)},
+      {k:'upstream', l:'Upstream Type', t:'select', opts:()=>['Splitter','OLT','Main Line','Other'], def:()=>'Splitter'},
+      {k:'upstreamId', l:'Upstream Device / ID', t:'text'},
+      {k:'splitter', l:'Splitter Ratio', t:'select', opts:()=>['1:2','1:4','1:8','1:16','1:32','1:64']},
+      {k:'route', l:'Fiber Route / Cable Notes', t:'textarea'},
+      {k:'installed', l:'Installation Date', t:'date'},
+      {k:'lastMaint', l:'Last Maintenance Date', t:'date'},
+      {k:'color', l:'Map Pin Color', t:'color', def:()=>'#3b82f6'},
+      {k:'status', l:'Status', t:'select', opts:()=>['Active','Under Repair','Planned','Decommissioned'], def:()=>'Active'},
+    ]
+  },
+  complaints: {
+    title:'Ticket',
+    fields:[
+      {k:'id', l:'Ticket ID', t:'text', req:true, def:()=>nextId('T', DB.complaints)},
+      {k:'date', l:'Date Reported', t:'date', req:true, def:()=>todayISO()},
+      {k:'clientId', l:'Client', t:'client', req:true},
+      {k:'category', l:'Issue Category', t:'select',
+        opts:()=>['No Internet','Slow speed','Intermittent','Cable cut','ONU faulty','Billing','Relocation','Other']},
+      {k:'description', l:'Description', t:'textarea'},
+      {k:'tech', l:'Technician', t:'text'},
+      {k:'status', l:'Status', t:'select', opts:()=>['Open','In Progress','Resolved','Closed'], def:()=>'Open'},
+      {k:'fixedDate', l:'Date Fixed', t:'date'},
+      {k:'resolution', l:'Resolution Notes', t:'textarea'},
+      {k:'cost', l:'Cost (₱)', t:'number', def:()=>0},
+    ]
+  },
+  installs: {
+    title:'Request',
+    fields:[
+      {k:'id', l:'Request ID', t:'text', req:true, def:()=>nextId('R', DB.installs)},
+      {k:'date', l:'Date Requested', t:'date', req:true, def:()=>todayISO()},
+      {k:'type', l:'Type', t:'select', opts:()=>['New Install','Disconnection','Relocation','Upgrade','Repair'], def:()=>'New Install'},
+      {k:'name', l:'Client / Prospect Name', t:'text', req:true},
+      {k:'contact', l:'Contact', t:'text'},
+      {k:'address', l:'Address / Barangay', t:'text'},
+      {k:'plan', l:'Plan', t:'select', opts:()=>DB.settings.plans||[]},
+      {k:'napId', l:'NAP Box', t:'select', opts:()=>DB.napBoxes.map(b=>b.id)},
+      {k:'status', l:'Status', t:'select', opts:()=>['Pending','Scheduled','In Progress','Completed','Cancelled'], def:()=>'Pending'},
+      {k:'schedule', l:'Scheduled Date', t:'date'},
+      {k:'tech', l:'Technician', t:'text'},
+      {k:'notes', l:'Notes', t:'textarea'},
+    ]
+  },
+  inventory: {
+    title:'Inventory Item',
+    fields:[
+      {k:'id', l:'Item ID', t:'text', req:true, def:()=>nextId('IT', DB.inventory)},
+      {k:'category', l:'Category', t:'select',
+        opts:()=>['ONU','Router','Fiber Cable','Connectors','Splitter','Tools','Other'], def:()=>'ONU'},
+      {k:'model', l:'Brand / Model', t:'text'},
+      {k:'serial', l:'Serial / MAC', t:'text'},
+      {k:'qty', l:'Quantity', t:'number', req:true, def:()=>1},
+      {k:'unit', l:'Unit', t:'select', opts:()=>['pcs','m','roll','box','set'], def:()=>'pcs'},
+      {k:'location', l:'Location / Stockroom', t:'text', def:()=>'Main stock'},
+      {k:'clientId', l:'Assigned to Client', t:'client'},
+      {k:'status', l:'Status', t:'select', opts:()=>['In Stock','Installed','Damaged','Lost'], def:()=>'In Stock'},
+      {k:'dateAdded', l:'Date Added', t:'date', def:()=>todayISO()},
+      {k:'notes', l:'Notes', t:'textarea'},
+    ]
+  },
+};
+
+function openForm(table, id, initialValues={}){
+  const schema = SCHEMAS[table];
+  const isNew = !id;
+  const row = isNew ? {} : DB[table].find(r=>String(r.id)===String(id));
+  if(!isNew && !row){ toast('Record not found'); return; }
+
+  const data = isNew ? initialValues : {...row, ...initialValues};
+
+  const fieldsHtml = schema.fields.map(f=>{
+    let val = data[f.k];
+    if((val===undefined || val==='') && isNew && f.def) val = f.def();
+    if(val===undefined || val===null) val = '';
+
+    let input;
+    if(f.t==='select'){
+      const opts = f.opts ? f.opts() : [];
+      input = `<select name="${f.k}" ${f.req?'required':''}>
+        <option value="">— select —</option>
+        ${opts.map(o=>`<option value="${esc(o)}" ${String(val)===String(o)?'selected':''}>${esc(o)}</option>`).join('')}
+      </select>`;
+    } else if(f.t==='client'){
+      input = `<select name="${f.k}" ${f.req?'required':''}>
+        <option value="">— select client —</option>
+        ${DB.clients.map(c=>`<option value="${esc(c.id)}" ${String(val)===String(c.id)?'selected':''}>${esc(c.id)} — ${esc(c.name)}</option>`).join('')}
+      </select>`;
+    } else if(f.t==='textarea'){
+      input = `<textarea name="${f.k}" rows="2">${esc(val)}</textarea>`;
+    } else if(f.t==='color'){
+      input = `<input name="${f.k}" type="color" value="${esc(val)||'#3b82f6'}">`;
+    } else {
+      input = `<input name="${f.k}" type="${f.t}" value="${esc(val)}"
+        ${f.req?'required':''} ${f.step?`step="${f.step}"`:''}>`;
+    }
+    return `<label class="field"><span>${esc(f.l)}${f.req?' *':''}</span>${input}</label>`;
+  }).join('');
+
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="modal-head">
+      <h2>${isNew?'Add':'Edit'} ${esc(schema.title)}</h2>
+      <button class="btn sm" data-act="closeModal">✕</button>
+    </div>
+    <form id="modalForm">${fieldsHtml}
+      <div class="modal-actions">
+        <button type="button" class="btn" data-act="closeModal">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>`;
+
+  document.getElementById('backdrop').classList.add('open');
+
+  document.getElementById('modalForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const obj = {};
+    schema.fields.forEach(f=>{
+      let v = fd.get(f.k);
+      if(v===null) v = '';
+      if(f.t==='number' && v!=='') v = Number(v);
+      obj[f.k] = v;
+    });
+
+    const old = isNew ? null : {...row};
+
+    if(table==='clients'){
+      if(obj.lat!=='' || obj.lng!==''){
+        const lat = Number(obj.lat), lng = Number(obj.lng);
+        if(obj.lat==='' || obj.lng==='' || !Number.isFinite(lat) || !Number.isFinite(lng) ||
+           lat < -90 || lat > 90 || lng < -180 || lng > 180){
+          toast('Enter valid latitude and longitude for the house'); return;
+        }
+      }
+      const portError = clientPortError(obj, old ? old.id : obj.id);
+      if(portError){ toast(portError); return; }
+      if(obj.napId && obj.port){
+        const targetPort = DB.napPorts.find(p=>p.napId===obj.napId && Number(p.port)===Number(obj.port));
+        if(targetPort && ['Faulty','Reserved'].includes(targetPort.status)){
+          toast('Choose a free NAP port'); return;
+        }
+      }
+    }
+
+    if(isNew){
+      if(DB[table].some(r=>String(r.id)===String(obj.id))){
+        toast('ID already exists'); return;
+      }
+      // stamp createdAt for receipts
+      if(table==='payments'){
+        obj.createdAt = new Date().toISOString();
+        if(!obj.receiptNo) obj.receiptNo = nextReceiptNo();
+      }
+      DB[table].push(obj);
+    } else {
+      const idx = DB[table].findIndex(r=>String(r.id)===String(id));
+      // preserve createdAt
+      if(table==='payments' && row.createdAt && !obj.createdAt) obj.createdAt = row.createdAt;
+      DB[table][idx] = obj;
+    }
+
+    if(table==='clients') syncClientPort(obj, old);
+    if(table==='napBoxes') ensurePorts(obj);
+
+    save(); closeModal(); render();
+    toast(isNew ? 'Added' : 'Updated');
+
+    // offer to open receipt if new payment
+    if(isNew && table==='payments'){
+      setTimeout(()=>openReceipt(obj.id), 200);
+    }
+  });
+}
+
+function closeModal(){
+  document.getElementById('backdrop').classList.remove('open');
+  document.getElementById('modal').innerHTML = '';
+  state.pendingClientHouse = null;
+}
+
+/* ------------------------------ port modal ------------------------------ */
+function openPortModal(napId, port){
+  const box = DB.napBoxes.find(b=>b.id===napId);
+  if(!box) return;
+  const p = DB.napPorts.find(x=>x.napId===napId && Number(x.port)===Number(port));
+  const curClient = p && p.clientId ? DB.clients.find(c=>c.id===p.clientId) : null;
+  const status = p ? p.status : 'Free';
+  const clientOptions = DB.clients.map(c=>
+    `<option value="${esc(c.id)}" ${curClient && curClient.id===c.id?'selected':''}>${esc(c.id)} — ${esc(c.name)}</option>`
+  ).join('');
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-head">
+      <h2>${esc(box.id)} · Port ${port}</h2>
+      <button class="btn sm" data-act="closeModal">✕</button>
+    </div>
+    <form id="portForm">
+      <input type="hidden" name="napId" value="${esc(napId)}">
+      <input type="hidden" name="port" value="${port}">
+      <label class="field"><span>Port Status</span>
+        <select name="status">
+          <option value="Free" ${status==='Free'?'selected':''}>Free / Available</option>
+          <option value="Used" ${status==='Used'?'selected':''}>Used / Connected</option>
+          <option value="Reserved" ${status==='Reserved'?'selected':''}>Reserved</option>
+          <option value="Faulty" ${status==='Faulty'?'selected':''}>Faulty / Broken</option>
+        </select>
+      </label>
+      <label class="field"><span>Assign Client (optional)</span>
+        <select name="clientId">
+          <option value="">— none —</option>
+          ${clientOptions}
+        </select>
+      </label>
+      <label class="field"><span>Notes</span>
+        <input name="notes" value="${esc(p?p.notes:'')}">
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-act="closeModal">Cancel</button>
+        <button type="submit" class="btn primary">Save Port</button>
+      </div>
+    </form>`;
+
+  document.getElementById('backdrop').classList.add('open');
+
+  document.getElementById('portForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const napId = fd.get('napId');
+    const portNum = Number(fd.get('port'));
+    const newStatus = fd.get('status');
+    const selectedClientId = fd.get('clientId');
+    const clientId = newStatus==='Used' ? selectedClientId : '';
+    const notes = fd.get('notes');
+
+    if(newStatus==='Used' && !clientId){
+      toast('Choose a client for a used port'); return;
+    }
+    if(clientId){
+      const portError = clientPortError({napId, port:portNum}, clientId);
+      if(portError){ toast(portError); return; }
+    }
+
+    let p = DB.napPorts.find(x=>x.napId===napId && Number(x.port)===portNum);
+    const oldClientId = p ? p.clientId : '';
+    if(!p){
+      p = {id:`NP-${napId}-${portNum}`, napId, port:portNum, clientId:'', status:'Free', notes:''};
+      DB.napPorts.push(p);
+    }
+    if(newStatus==='Used' && clientId){
+      DB.clients.forEach(c=>{
+        if(c.id===clientId){
+          if(c.napId && Number(c.port) && (c.napId!==napId || Number(c.port)!==portNum)){
+            const old = DB.napPorts.find(x=>x.napId===c.napId && Number(x.port)===Number(c.port));
+            if(old){ old.clientId=''; old.status='Free'; }
+          }
+          c.napId = napId; c.port = portNum;
+        }
+      });
+    }
+    if(oldClientId && oldClientId!==clientId){
+      const oldC = DB.clients.find(c=>c.id===oldClientId);
+      if(oldC && oldC.napId===napId && Number(oldC.port)===portNum){
+        oldC.napId = ''; oldC.port = '';
+      }
+    }
+    if(clientId){
+      const newC = DB.clients.find(c=>c.id===clientId);
+      if(newC){ newC.napId = napId; newC.port = portNum; }
+    }
+    p.clientId = (newStatus==='Used' && clientId) ? clientId : '';
+    p.status = newStatus==='Used' && !clientId ? 'Free' : newStatus;
+    p.notes = notes;
+
+    save(); closeModal(); render();
+    toast('Port updated');
+  });
+}
+
+/* ------------------------------ side effects ------------------------------ */
+function syncClientPort(client, old){
+  if(old && (old.napId!==client.napId || String(old.port)!==String(client.port))){
+    const oldPort = DB.napPorts.find(p=>
+      p.napId===old.napId && String(p.port)===String(old.port) && p.clientId===client.id
+    );
+    if(oldPort){ oldPort.clientId=''; oldPort.status='Free'; }
+  }
+  if(client.napId && client.port){
+    let targetPort = DB.napPorts.find(p=>
+      p.napId===client.napId && Number(p.port)===Number(client.port)
+    );
+    if(!targetPort){
+      targetPort = {id:`NP-${client.napId}-${client.port}`, napId:client.napId,
+        port:Number(client.port), clientId:'', status:'Free', notes:''};
+      DB.napPorts.push(targetPort);
+    }
+    targetPort.clientId=client.id; targetPort.status='Used';
+  }
+}
+
+function clientPortError(client, excludeClientId){
+  if(!client.napId && !client.port) return '';
+  if(!client.napId || !client.port) return 'Choose both a NAP box and port, or leave both empty';
+  const box = DB.napBoxes.find(b=>b.id===client.napId);
+  const port = Number(client.port);
+  if(!box || !Number.isInteger(port) || port<1 || port>num(box.totalPorts)){
+    return 'Choose a valid port on the selected NAP box';
+  }
+  const otherClient = DB.clients.find(c=>c.id!==excludeClientId && c.napId===client.napId && Number(c.port)===port);
+  if(otherClient) return `Port ${port} is already assigned to ${otherClient.name}`;
+  const portRecord = DB.napPorts.find(p=>p.napId===client.napId && Number(p.port)===port && p.clientId && p.clientId!==excludeClientId);
+  if(portRecord){
+    const owner = DB.clients.find(c=>c.id===portRecord.clientId);
+    return `Port ${port} is already assigned${owner?` to ${owner.name}`:''}`;
+  }
+  return '';
+}
+
+function ensurePorts(box){
+  for(let i=1;i<=num(box.totalPorts);i++){
+    if(!DB.napPorts.find(p=>p.napId===box.id && Number(p.port)===i)){
+      DB.napPorts.push({id:`NP-${box.id}-${i}`, napId:box.id, port:i, clientId:'', status:'Free', notes:''});
+    }
+  }
+  DB.napPorts = DB.napPorts.filter(p=>p.napId!==box.id || Number(p.port)<=num(box.totalPorts));
+}
+
+function generateInvoices(month){
+  const dueDay = pad(DB.settings.dueDay||5);
+  let added = 0;
+  DB.clients.filter(c=>c.status!=='Disconnected').forEach(c=>{
+    if(!DB.billing.find(b=>b.clientId===c.id && b.month===month)){
+      DB.billing.push({
+        id:`INV-${month}-${c.id}`, month, clientId:c.id,
+        dueDate:`${month}-${dueDay}`, amountDue:num(c.rate), remarks:''
+      });
+      added++;
+    }
+  });
+  save();
+  toast(added ? `Generated ${added} invoice(s)` : 'All invoices already exist');
+  render();
+}
+
+/* =========================================================================
+   EVENTS
+   ========================================================================= */
+document.addEventListener('click', e=>{
+  const removeTag = e.target.closest('[data-tag-remove]');
+  if(removeTag){ removeTag.closest('[data-tag-value]').remove(); return; }
+
+  const addTag = e.target.closest('[data-tag-add]');
+  if(addTag){
+    const input = document.querySelector(`[data-tag-input="${addTag.dataset.tagAdd}"]`);
+    addEditorTag(input);
+    input.focus();
+    return;
+  }
+
+  const tabBtn = e.target.closest('[data-tab]');
+  if(tabBtn){ state.mapPlaceClient=false; state.tab = tabBtn.dataset.tab; state.search=''; render(); return; }
+
+  const napViewBtn = e.target.closest('[data-napview]');
+  if(napViewBtn){
+    state.mapPlaceClient = false;
+    state.napView = napViewBtn.dataset.napview;
+    if(state.napView==='map'){ setTimeout(initMap, 60); }
+    render();
+    return;
+  }
+
+  const splitterBtn = e.target.closest('[data-act="viewSplitter"]');
+  if(splitterBtn){
+    state.napView = 'splitter';
+    state.selectedNapId = splitterBtn.dataset.id;
+    render();
+    return;
+  }
+
+  const portCell = e.target.closest('[data-act="openPort"]');
+  if(portCell){
+    openPortModal(portCell.dataset.napid, Number(portCell.dataset.port));
+    return;
+  }
+
+  const act = e.target.closest('[data-act]');
+  if(!act) return;
+  const a = act.dataset.act;
+
+  if(a==='continueHouse'){
+    const clientId = document.getElementById('houseClientPicker').value;
+    const coordinates = state.pendingClientHouse;
+    state.pendingClientHouse = null;
+    if(coordinates) openForm('clients', clientId, coordinates);
+    return;
+  }
+  if(a==='newHouseClient'){
+    const coordinates = state.pendingClientHouse;
+    state.pendingClientHouse = null;
+    if(coordinates) openForm('clients', null, coordinates);
+    return;
+  }
+  if(a==='addClientHouse'){
+    state.mapPlaceClient = true;
+    state.napView = 'map';
+    render();
+    toast('Tap the map to place the house');
+    return;
+  }
+  if(a==='add'){ openForm(act.dataset.table); return; }
+  if(a==='edit'){ openForm(act.dataset.table, act.dataset.id); return; }
+  if(a==='closeModal'){ closeModal(); return; }
+  if(a==='closeReceipt'){ closeReceipt(); return; }
+  if(a==='generate'){ generateInvoices(state.month); return; }
+  if(a==='receipt'){ openReceipt(act.dataset.id); return; }
+
+  if(a==='del'){
+    const t = act.dataset.table, id = act.dataset.id;
+    if(!confirm(`Delete ${id}? This cannot be undone.`)) return;
+    DB[t] = DB[t].filter(r=>String(r.id)!==String(id));
+    if(t==='clients'){
+      DB.napPorts.forEach(p=>{ if(p.clientId===id){ p.clientId=''; p.status='Free'; } });
+    }
+    if(t==='napBoxes'){
+      DB.napPorts = DB.napPorts.filter(p=>p.napId!==id);
+      DB.clients.forEach(c=>{
+        if(c.napId===id){ c.napId=''; c.port=''; }
+      });
+      DB.napBoxes.forEach(b=>{ if(b.uplinkId===id) b.uplinkId=''; });
+    }
+    save(); render(); toast('Deleted');
+    return;
+  }
+
+  if(a==='saveSettings'){
+    DB.settings.business = document.getElementById('setBusiness').value.trim() || 'My ISP';
+    DB.settings.tagline = document.getElementById('setTagline').value.trim();
+    DB.settings.address = document.getElementById('setAddress').value.trim();
+    DB.settings.contact = document.getElementById('setContact').value.trim();
+    DB.settings.tin = document.getElementById('setTin').value.trim();
+    const plans = readEditorTags('plans');
+    const methods = readEditorTags('methods');
+    if(!plans.length || !methods.length){ toast('Add at least one plan and payment method'); return; }
+    DB.settings.plans = plans;
+    DB.settings.methods = methods;
+    DB.settings.dueDay = Math.min(28, Math.max(1, num(document.getElementById('setDueDay').value)||5));
+    document.getElementById('subBrand').textContent = DB.settings.business;
+    save(); toast('Settings saved'); render();
+    return;
+  }
+
+  if(a==='saveHome'){
+    DB.settings.homeBase.name = document.getElementById('setHomeName').value.trim() || 'Home Base / OLT';
+    DB.settings.homeBase.lat = num(document.getElementById('setHomeLat').value) || DB.settings.homeBase.lat;
+    DB.settings.homeBase.lng = num(document.getElementById('setHomeLng').value) || DB.settings.homeBase.lng;
+    save(); toast('Home Base saved'); render();
+    return;
+  }
+
+  if(a==='resetDemo'){
+    if(!confirm('Restore the imported PPPoE list? Your current records will be replaced.')) return;
+    DB = seed(); save(); state.month = ym(new Date()); render(); toast('Demo data restored');
+    return;
+  }
+
+  if(a==='wipe'){
+    if(!confirm('Erase ALL data? This cannot be undone.')) return;
+    if(!confirm('Are you absolutely sure?')) return;
+    DB = {
+      clients:[], billing:[], payments:[], napBoxes:[], napPorts:[],
+      complaints:[], installs:[], inventory:[],
+      settings:{
+        business:'My ISP', tagline:'Fiber Internet Service Provider',
+        address:'', contact:'', tin:'',
+        plans:['35 Mbps','50 Mbps','100 Mbps'],
+        methods:['Cash','GCash','Maya','Bank Transfer'],
+        dueDay:5, homeBase:{name:'Home Base / OLT', lat:14.1230, lng:121.1230}
+      }
+    };
+    save(); render(); toast('All data erased');
+    return;
+  }
+});
+
+document.addEventListener('change', e=>{
+  if(e.target.id==='monthPick'){ state.month = e.target.value; render(); }
+  if(e.target.id==='napPicker'){ state.selectedNapId = e.target.value; render(); }
+  if(e.target.name==='plan' && e.target.form?.id==='modalForm'){
+    const rate = e.target.form.elements.namedItem('rate');
+    const standardRate = standardPlanRate(e.target.value);
+    if(rate && standardRate!==null) rate.value = standardRate;
+  }
+});
+
+document.addEventListener('input', e=>{
+  if(e.target.id==='searchBox'){
+    state.search = e.target.value;
+    const pos = e.target.selectionStart;
+    render();
+    const box = document.getElementById('searchBox');
+    if(box){ box.focus(); box.setSelectionRange(pos,pos); }
+  }
+});
+
+document.getElementById('backdrop').addEventListener('click', e=>{
+  if(e.target.id==='backdrop') closeModal();
+});
+document.getElementById('receiptBackdrop').addEventListener('click', e=>{
+  if(e.target.id==='receiptBackdrop') closeReceipt();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.matches('[data-tag-input]')){
+    e.preventDefault();
+    addEditorTag(e.target);
+    return;
+  }
+  if(e.key==='Escape'){ closeModal(); closeReceipt(); }
+});
+
+document.getElementById('btnPrintRcpt').onclick = ()=>window.print();
+document.getElementById('btnCopyRcpt').onclick = copyReceiptText;
+document.getElementById('btnShareRcpt').onclick = shareReceipt;
+
+/* ------------------------------ backup / restore ------------------------------ */
+function download(filename, text, type='application/json'){
+  const blob = new Blob([text], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function doBackup(){
+  const stamp = todayISO();
+  download(`isp-backup-${stamp}.json`, JSON.stringify(DB, null, 2));
+  toast('Backup downloaded');
+}
+
+function toCSV(rows, cols){
+  const esc2 = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+  const head = cols.map(c=>esc2(c.label)).join(',');
+  const body = rows.map(r=>cols.map(c=>esc2(r[c.key])).join(',')).join('\n');
+  return head + '\n' + body;
+}
+
+document.getElementById('btnBackup').onclick = doBackup;
+document.getElementById('btnRestore').onclick = ()=>document.getElementById('fileInput').click();
+
+document.addEventListener('click', e=>{
+  if(e.target.id==='btnBackup2') doBackup();
+  if(e.target.id==='btnRestore2') document.getElementById('fileInput').click();
+  if(e.target.id==='btnCsv'){
+    const csv = toCSV(DB.clients, [
+      {label:'Client ID', key:'id'},
+      {label:'Full Name', key:'name'},
+      {label:'Address/Barangay', key:'barangay'},
+      {label:'City', key:'city'},
+      {label:'Province', key:'province'},
+      {label:'Contact', key:'contact'},
+      {label:'Plan', key:'plan'},
+      {label:'Monthly Rate', key:'rate'},
+      {label:'Installation Date', key:'installed'},
+      {label:'NAP Box', key:'napId'},
+      {label:'NAP Port', key:'port'},
+      {label:'ONU Serial', key:'onu'},
+      {label:'MAC', key:'mac'},
+      {label:'PPPoE', key:'pppoe'},
+      {label:'Status', key:'status'},
+      {label:'Notes', key:'notes'},
+    ]);
+    download(`clients-${todayISO()}.csv`, csv, 'text/csv');
+    toast('CSV exported');
+  }
+});
+
+document.getElementById('fileInput').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!data.clients || !Array.isArray(data.clients)) throw new Error('Invalid file');
+      if(!confirm('Replace all current data with this backup?')) return;
+      DB = data;
+      DB.settings = DB.settings || {};
+      DB.settings.plans = DB.settings.plans || [];
+      DB.settings.methods = DB.settings.methods || [];
+      DB.settings.dueDay = DB.settings.dueDay || 5;
+      DB.settings.business = DB.settings.business || 'My ISP';
+      if(!DB.settings.homeBase) DB.settings.homeBase = {name:'Home Base / OLT', lat:14.1230, lng:121.1230};
+      migratePlanPricing();
+      (DB.payments||[]).forEach(p=>{ if(!p.receiptNo) p.receiptNo = nextReceiptNo(); });
+      save();
+      document.getElementById('subBrand').textContent = DB.settings.business;
+      render();
+      toast('Backup restored');
+    }catch(err){
+      alert('Could not read that file. Make sure it is a valid ISP Manager backup.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* ------------------------------ go ------------------------------ */
+init();
+</script>
+</body>
+</html>
