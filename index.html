@@ -250,6 +250,13 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
   font-size:11px;color:var(--ink-2);box-shadow:0 3px 10px rgba(0,0,0,.4);
   max-width:200px;line-height:1.5;
 }
+.map-context-menu{
+  position:absolute;z-index:600;display:grid;gap:6px;min-width:180px;
+  padding:8px;border:1px solid var(--line-2);border-radius:10px;
+  background:rgba(15,23,42,.97);box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+.map-context-menu[hidden]{display:none}
+.map-context-menu .btn{justify-content:flex-start}
 .name-badge-marker{
   display:flex;align-items:center;justify-content:center;
   color:#fff;font-weight:700;font-size:11px;
@@ -573,6 +580,7 @@ const state = {
   map3d:false,
   selectedNapId:null,
   mapPlaceClient:false,
+  mapContextLocation:null,
   pendingClientHouse:null,
   currentReceiptId:null,
 };
@@ -1439,9 +1447,13 @@ function napMapView(){
   <div id="mapWrap">
     <div id="map"></div>
     <div class="map-status" id="mapStatus" role="status" aria-live="polite" hidden></div>
+    <div class="map-context-menu" id="mapContextMenu" role="menu" hidden>
+      <button class="btn sm" type="button" data-act="placeNapBoxAtMap">＋ Add NAP Box here</button>
+      <button class="btn sm" type="button" data-act="placeClientAtMap">⌂ Add Client here</button>
+    </div>
     <div class="map-help">
       <b>Map</b><br>
-      Use Add Client House to place a subscriber. Drag markers to reposition; select a NAP box to open its splitter.
+      Right-click to add a NAP box or client at that location. Drag markers to reposition; select a NAP box to open its splitter.
       <div style="margin-top:8px"><button class="btn sm" id="map3dToggle" type="button">Enable 3D</button></div>
     </div>
     <div class="map-overlay">
@@ -1467,6 +1479,23 @@ async function initMap(){
   };
   const hideMapStatus = ()=>{
     if(status) status.hidden = true;
+  };
+  const showMapContextMenu = (point, lat, lng)=>{
+    const menu = document.getElementById('mapContextMenu');
+    const wrap = document.getElementById('mapWrap');
+    if(!menu || !wrap) return;
+    const coords = {lat:Number(lat).toFixed(6), lng:Number(lng).toFixed(6)};
+    state.mapContextLocation = coords;
+    menu.hidden = false;
+    const maxLeft = Math.max(0, wrap.clientWidth - menu.offsetWidth - 8);
+    const maxTop = Math.max(0, wrap.clientHeight - menu.offsetHeight - 8);
+    menu.style.left = `${Math.min(Math.max(point.x, 8), maxLeft)}px`;
+    menu.style.top = `${Math.min(Math.max(point.y, 8), maxTop)}px`;
+  };
+  const hideMapContextMenu = ()=>{
+    const menu = document.getElementById('mapContextMenu');
+    if(menu) menu.hidden = true;
+    state.mapContextLocation = null;
   };
   const hb = DB.settings.homeBase;
   if(mapInstance){ mapInstance.remove(); mapInstance = null; }
@@ -1498,6 +1527,11 @@ async function initMap(){
       });
       L.control.zoom({position:'topright'}).addTo(mapInstance);
       leafletMapOverlays = L.layerGroup().addTo(mapInstance);
+      mapInstance.on('contextmenu', event=>{
+        event.originalEvent.preventDefault();
+        showMapContextMenu(event.containerPoint, event.latlng.lat, event.latlng.lng);
+      });
+      mapInstance.on('click', hideMapContextMenu);
       const map3dButton = document.getElementById('map3dToggle');
       if(map3dButton) map3dButton.hidden = true;
       renderLeafletMapMarkers();
@@ -1539,6 +1573,11 @@ async function initMap(){
     });
     mapInstance.addControl(new mapboxgl.NavigationControl({visualizePitch:true}), 'top-right');
     mapHoverPopup = new mapboxgl.Popup({closeButton:false, closeOnClick:false, offset:8});
+    mapInstance.on('contextmenu', event=>{
+      event.originalEvent.preventDefault();
+      showMapContextMenu(event.point, event.lngLat.lat, event.lngLat.lng);
+    });
+    mapInstance.on('click', hideMapContextMenu);
     mapInstance.on('load', ()=>{
       mapLoaded = true;
       hideMapStatus();
@@ -2946,6 +2985,16 @@ document.addEventListener('click', e=>{
     const coordinates = state.pendingClientHouse;
     state.pendingClientHouse = null;
     if(coordinates) openForm('clients', null, coordinates);
+    return;
+  }
+  if(a==='placeNapBoxAtMap' || a==='placeClientAtMap'){
+    const coordinates = state.mapContextLocation;
+    const menu = document.getElementById('mapContextMenu');
+    if(menu) menu.hidden = true;
+    state.mapContextLocation = null;
+    if(!coordinates) return;
+    if(a==='placeNapBoxAtMap') openForm('napBoxes', null, coordinates);
+    else openClientHouseForm(coordinates.lat, coordinates.lng);
     return;
   }
   if(a==='addClientHouse'){
