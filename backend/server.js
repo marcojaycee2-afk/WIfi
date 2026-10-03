@@ -92,8 +92,9 @@ app.use((error, req, res, next) => {
 
 async function start(){
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-  if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 12) {
-    throw new Error('ADMIN_PASSWORD must be at least 12 characters');
+  if (!process.env.ADMIN_PASSWORD) throw new Error('ADMIN_PASSWORD is missing; set it in the app service environment');
+  if (process.env.ADMIN_PASSWORD.length < 12) {
+    throw new Error(`ADMIN_PASSWORD is too short (${process.env.ADMIN_PASSWORD.length} characters; minimum is 12)`);
   }
   if (!process.env.SESSION_SECRET || Buffer.byteLength(process.env.SESSION_SECRET) < 32) {
     throw new Error('SESSION_SECRET must be at least 32 bytes');

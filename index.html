@@ -224,6 +224,14 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 
 #mapWrap{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow)}
 #map{height:min(65vh, 560px);width:100%;z-index:0;background:#0f172a}
+.map-status{
+  position:absolute;z-index:450;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(420px,calc(100% - 32px));padding:14px 16px;border:1px solid var(--line-2);
+  border-radius:12px;background:rgba(15,23,42,.96);color:var(--ink-2);
+  box-shadow:var(--shadow);text-align:center;font-size:13px;
+}
+.map-status[hidden]{display:none}
+.map-status strong{display:block;margin-bottom:4px;color:var(--ink)}
 .map-overlay{
   position:absolute;left:10px;bottom:10px;z-index:500;
   background:rgba(15,23,42,.9);backdrop-filter:blur(4px);
@@ -1393,6 +1401,7 @@ function napMapView(){
   return `
   <div id="mapWrap">
     <div id="map"></div>
+    <div class="map-status" id="mapStatus" role="status" aria-live="polite" hidden></div>
     <div class="map-help">
       <b>Map</b><br>
       Use Add Client House to place a subscriber. Drag markers to reposition; select a NAP box to open its splitter.
@@ -1413,14 +1422,28 @@ function napMapView(){
 async function initMap(){
   const el = document.getElementById('map');
   if(!el) return;
+  const status = document.getElementById('mapStatus');
+  const showMapStatus = (title, message)=>{
+    if(!status) return;
+    status.innerHTML = `<strong>${esc(title)}</strong>${esc(message)}`;
+    status.hidden = false;
+  };
+  const hideMapStatus = ()=>{
+    if(status) status.hidden = true;
+  };
   const hb = DB.settings.homeBase;
   if(mapInstance){ mapInstance.remove(); mapInstance = null; }
+  showMapStatus('Loading map…', 'Connecting to the map service.');
   try{
     const response = await fetch('/api/config');
     if(!response.ok) throw new Error('Could not load map configuration');
     const {mapboxAccessToken} = await response.json();
     if(!mapboxAccessToken){
-      el.innerHTML = '<div class="empty">Add your Mapbox public token to <code>.env</code> as MAPBOX_ACCESS_TOKEN, then restart the app.</div>';
+      showMapStatus('Map token not configured', 'Set MAPBOX_ACCESS_TOKEN on the app service to a Mapbox public token starting with pk., then redeploy.');
+      return;
+    }
+    if(typeof mapboxgl==='undefined'){
+      showMapStatus('Map library unavailable', 'Allow network access to api.mapbox.com and reload the page.');
       return;
     }
     mapboxgl.accessToken = mapboxAccessToken;
@@ -1432,9 +1455,23 @@ async function initMap(){
       pitch:state.map3d ? 55 : 0,
       antialias:true
     });
+    let mapLoaded = false;
+    mapInstance.on('error', event=>{
+      if(mapLoaded) return;
+      const error = event.error || {};
+      const statusCode = Number(error.status);
+      if(statusCode===401 || statusCode===403){
+        showMapStatus('Mapbox rejected the token', 'Check that MAPBOX_ACCESS_TOKEN is valid, is a public pk. token, and allows this site’s domain.');
+      }else{
+        showMapStatus('Map could not load', 'Check the public token, its allowed URL restrictions, and the connection to Mapbox.');
+      }
+      console.error('Mapbox map error', error);
+    });
     mapInstance.addControl(new mapboxgl.NavigationControl({visualizePitch:true}), 'top-right');
     mapHoverPopup = new mapboxgl.Popup({closeButton:false, closeOnClick:false, offset:8});
     mapInstance.on('load', ()=>{
+      mapLoaded = true;
+      hideMapStatus();
       addMapBuildings();
       renderMapMarkers();
       setMap3dMode(state.map3d, false);
@@ -1449,7 +1486,7 @@ async function initMap(){
     });
   }catch(error){
     console.error('Mapbox failed to load', error);
-    el.innerHTML = '<div class="empty">Mapbox could not load. Check your public token and internet connection.</div>';
+    showMapStatus('Map could not start', 'Check MAPBOX_ACCESS_TOKEN and allow this site’s domain in your Mapbox token settings.');
   }
 }
 
