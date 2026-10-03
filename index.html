@@ -499,6 +499,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 <header class="topbar">
   <div class="brand">⚡ ISP Manager<small id="subBrand">—</small></div>
   <span class="save-status" id="saveStatus" data-state="saving" role="status" aria-live="polite">Opening database…</span>
+  <button class="btn" id="btnLogout" title="Sign out">Sign out</button>
   <button class="btn" id="btnBackup" title="Backup">⬇ Backup</button>
   <button class="btn" id="btnRestore" title="Restore">⬆ Restore</button>
 </header>
@@ -709,6 +710,10 @@ function save(){
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({state:snapshot})
   })).then(response=>{
+    if(response.status===401){
+      window.location.replace('/login');
+      throw new Error('Authentication required');
+    }
     if(!response.ok) throw new Error(`PostgreSQL save failed (${response.status})`);
     if(revision===saveRevision) setSaveStatus('Saved to PostgreSQL');
   });
@@ -723,6 +728,10 @@ function save(){
 async function load(){
   try{
     const response = await fetch('/api/state');
+    if(response.status===401){
+      window.location.replace('/login');
+      return null;
+    }
     if(!response.ok) throw new Error(`PostgreSQL load failed (${response.status})`);
     const payload = await response.json();
     if(payload.state) return payload.state;
@@ -2705,6 +2714,16 @@ function toCSV(rows, cols){
 
 document.getElementById('btnBackup').onclick = doBackup;
 document.getElementById('btnRestore').onclick = ()=>document.getElementById('fileInput').click();
+document.getElementById('btnLogout').onclick = async ()=>{
+  try{
+    const response = await fetch('/api/logout', {method:'POST'});
+    if(!response.ok) throw new Error(`Sign out failed (${response.status})`);
+    window.location.replace('/login');
+  }catch(error){
+    console.error(error);
+    toast('Could not sign out. Please try again.');
+  }
+};
 
 document.addEventListener('click', e=>{
   if(e.target.id==='btnBackup2') doBackup();
