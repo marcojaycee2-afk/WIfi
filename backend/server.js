@@ -14,7 +14,7 @@ const host = process.env.HOST || '127.0.0.1';
 app.use(express.json({ limit: '10mb' }));
 
 const auth = createAuth({
-  username: process.env.ADMIN_USERNAME,
+  username: process.env.ADMIN_USERNAME || 'telecomadmin',
   password: process.env.ADMIN_PASSWORD,
   secret: process.env.SESSION_SECRET,
   secureCookies: process.env.NODE_ENV === 'production'
@@ -92,7 +92,6 @@ app.use((error, req, res, next) => {
 
 async function start(){
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-  if (!process.env.ADMIN_USERNAME) throw new Error('ADMIN_USERNAME is required');
   if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 12) {
     throw new Error('ADMIN_PASSWORD must be at least 12 characters');
   }

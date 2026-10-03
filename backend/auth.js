@@ -25,7 +25,7 @@ function readCookie(req, name) {
   return '';
 }
 
-function createAuth({ secret, secureCookies }) {
+function createAuth({ username, password, secret, secureCookies }) {
   const failedLogins = new Map();
   const revokedSessions = new Map();
 
@@ -124,6 +124,12 @@ function createAuth({ secret, secureCookies }) {
       const session = readSession(req);
       if (session) revokedSessions.set(session.id, session.expiresAt);
       setSessionCookie(res, '', 0);
+    },
+    credentialsMatch(inputUsername, inputPassword) {
+      return typeof inputUsername === 'string' &&
+        typeof inputPassword === 'string' &&
+        safeEqual(inputUsername, username) &&
+        safeEqual(inputPassword, password);
     }
   };
 }
