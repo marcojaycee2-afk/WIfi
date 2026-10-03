@@ -257,6 +257,11 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 }
 .map-context-menu[hidden]{display:none}
 .map-context-menu .btn{justify-content:flex-start}
+.map-link{
+  padding:0;border:0;background:none;color:var(--accent);font:inherit;
+  text-decoration:underline;cursor:pointer;
+}
+.map-link:hover{background:none;color:#93c5fd}
 .name-badge-marker{
   display:flex;align-items:center;justify-content:center;
   color:#fff;font-weight:700;font-size:11px;
@@ -581,6 +586,7 @@ const state = {
   selectedNapId:null,
   mapPlaceClient:false,
   mapContextLocation:null,
+  mapFocus:null,
   pendingClientHouse:null,
   currentReceiptId:null,
 };
@@ -1401,7 +1407,8 @@ function napGridView(){
     const s = napStats(b);
     const pct = s.total ? Math.round(s.used/s.total*100) : 0;
     const cls = s.free<=2 ? 'full' : s.free<=4 ? 'warn' : 'ok';
-    const mapLink = (b.lat && b.lng) ? `https://www.google.com/maps/search/?api=1&query=${b.lat},${b.lng}` : '';
+    const hasCoordinates = b.lat!=='' && b.lat!=null && b.lng!=='' && b.lng!=null &&
+      Number.isFinite(Number(b.lat)) && Number.isFinite(Number(b.lng));
     const portChips = s.ports.map(p=>{
       const c = DB.clients.find(x=>x.id===p.clientId);
       const label = p.status==='Used' && c ? c.name.split(' ')[0] : p.status;
@@ -1418,7 +1425,7 @@ function napGridView(){
       </div>
       <div class="small muted" style="margin-bottom:8px">
         📍 ${esc(b.address||'')}${b.landmark?` · ${esc(b.landmark)}`:''}
-        ${b.lat&&b.lng?` · <a href="${mapLink}" target="_blank" rel="noopener" style="color:var(--accent)">${b.lat}, ${b.lng}</a>`:''}
+        ${hasCoordinates?` · ${b.lat}, ${b.lng} · <button class="map-link" type="button" data-act="focusNapMap" data-id="${esc(b.id)}">map</button>`:''}
       </div>
       <div class="bar ${cls}"><span style="width:${pct}%"></span></div>
       <div class="flex small muted" style="margin-top:6px">
@@ -1507,6 +1514,10 @@ async function initMap(){
     mapInstance.remove();
     mapInstance = null;
   }
+  if(state.mapFocus){
+    mapCenter = [Number(state.mapFocus.lat), Number(state.mapFocus.lng)];
+    mapZoom = 18;
+  }
   mapEngine = null;
   leafletMapOverlays = null;
   showMapStatus('Loading map…', 'Connecting to the map service.');
@@ -1521,6 +1532,7 @@ async function initMap(){
       }
       mapEngine = 'leaflet';
       mapInstance = L.map(el, {zoomControl:false}).setView(mapCenter, mapZoom);
+      state.mapFocus = null;
       const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom:19,
         attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -1567,6 +1579,7 @@ async function initMap(){
       pitch:state.map3d ? 55 : 0,
       antialias:true
     });
+    state.mapFocus = null;
     let mapLoaded = false;
     mapInstance.on('error', event=>{
       if(mapLoaded) return;
@@ -1907,6 +1920,19 @@ function openSplitterFromMap(id){
   render();
 }
 
+function focusNapBoxOnMap(id){
+  const box = DB.napBoxes.find(item=>String(item.id)===String(id));
+  if(!box || box.lat==='' || box.lat==null || box.lng==='' || box.lng==null ||
+     !Number.isFinite(Number(box.lat)) || !Number.isFinite(Number(box.lng))){
+    toast('This NAP box has no valid map coordinates');
+    return;
+  }
+  state.tab = 'naps';
+  state.napView = 'map';
+  state.mapFocus = {lat:Number(box.lat), lng:Number(box.lng)};
+  render();
+}
+
 function napSplitterView(){
   if(!DB.napBoxes.length){
     return `<div class="card"><div class="empty"><div class="big">🔌</div>No NAP boxes yet.</div></div>`;
@@ -1948,7 +1974,8 @@ function napSplitterView(){
       </div>`;
   }).join('');
 
-  const mapLink = (box.lat && box.lng) ? `https://www.google.com/maps/search/?api=1&query=${box.lat},${box.lng}` : '';
+  const hasCoordinates = box.lat!=='' && box.lat!=null && box.lng!=='' && box.lng!=null &&
+    Number.isFinite(Number(box.lat)) && Number.isFinite(Number(box.lng));
 
   return `
   ${selector}
@@ -1961,7 +1988,7 @@ function napSplitterView(){
     </div>
     <div class="tiny muted" style="margin-top:4px">
       📍 ${esc(box.address||'')}${box.landmark?` · ${esc(box.landmark)}`:''}
-      ${mapLink?` · <a href="${mapLink}" target="_blank" rel="noopener" style="color:var(--accent)">map</a>`:''}
+      ${hasCoordinates?` · <button class="map-link" type="button" data-act="focusNapMap" data-id="${esc(box.id)}">map</button>`:''}
     </div>
   </div>
   <div class="splitter-wrap">
@@ -3002,6 +3029,10 @@ document.addEventListener('click', e=>{
     if(!coordinates) return;
     if(a==='placeNapBoxAtMap') openForm('napBoxes', null, coordinates);
     else openClientHouseForm(coordinates.lat, coordinates.lng);
+    return;
+  }
+  if(a==='focusNapMap'){
+    focusNapBoxOnMap(act.dataset.id);
     return;
   }
   if(a==='addClientHouse'){
