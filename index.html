@@ -959,6 +959,28 @@ function isLegacyDemoData(data){
     data.settings?.business==='My ISP';
 }
 
+function isPreviousPppoeSeed(data){
+  const previousPppoeRoster = [
+    'felix','jojo12345','nanes','gapo','rowell','ratb','hepe','albert','potpot','lizel',
+    'jelo','katt','tomas','matt','jemar','bongbong','arnel','beverly','josenew','celly2',
+    'adriano','jaymark','hazelmiranda','edgar','ivanpinsanmiranda','jose','marlondimla',
+    'hob','paulo1','rudolf','vangie','maricel','bakspatubig','graceliongson','joel',
+    'reden','malu','chelly','ericson','ppp','regine','maribel','dada','ruby','lontoc',
+    'leslie','clarisa','jeff','ambet','aeron','danica','ivan','jaycee','jennyfer',
+    'johnpaul','jayson','mirasol','jendimla','cejaydimla','litoliongson','ramoncalma',
+    'jennilynancheta'
+  ];
+  const otherRecords = ['billing','payments','napBoxes','napPorts','complaints','installs','inventory'];
+  return Array.isArray(data.clients) &&
+    data.clients.length===previousPppoeRoster.length &&
+    data.clients.every((client,index)=>
+      client.id===`C-${String(index+1).padStart(4,'0')}` &&
+      client.pppoe===previousPppoeRoster[index] &&
+      client.name===previousPppoeRoster[index]
+    ) &&
+    otherRecords.every(key=>!Array.isArray(data[key]) || data[key].length===0);
+}
+
 /* ------------------------------ init ------------------------------ */
 async function init(){
   DB = await load();
@@ -968,6 +990,16 @@ async function init(){
     DB = seed();
     DB.settings = {...DB.settings, ...existingSettings, plans:DB.settings.plans};
     toast('Imported PPPoE subscriber list');
+  }else if(isPreviousPppoeSeed(DB)){
+    const existingSettings = DB.settings || {};
+    const newDefaults = seed();
+    DB = newDefaults;
+    DB.settings = {
+      ...DB.settings,
+      ...existingSettings,
+      plans:[...new Set([...(existingSettings.plans||[]), ...newDefaults.settings.plans])]
+    };
+    toast('Updated the default customer list to 68 subscribers');
   }
   DB.settings = DB.settings || {};
   DB.settings.plans = DB.settings.plans || ['10 Mbps','20 Mbps','25 Mbps','30 Mbps','50 Mbps','Unspecified'];
