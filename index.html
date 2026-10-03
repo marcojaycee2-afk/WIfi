@@ -625,6 +625,18 @@ function hasMapCoordinates(point){
   return Number.isFinite(lat) && Number.isFinite(lng) && lat>=-90 && lat<=90 && lng>=-180 && lng<=180;
 }
 
+function getDistanceStr(lat1, lng1, lat2, lng2){
+  const toRadians = degrees=>Number(degrees)*Math.PI/180;
+  const dLat = toRadians(lat2)-toRadians(lat1);
+  const dLng = toRadians(lng2)-toRadians(lng1);
+  const a = Math.sin(dLat/2)**2 +
+    Math.cos(toRadians(lat1))*Math.cos(toRadians(lat2))*Math.sin(dLng/2)**2;
+  const distanceMeters = 2*6371000*Math.asin(Math.sqrt(Math.min(1,a)));
+  return distanceMeters>=1000
+    ? `${(distanceMeters/1000).toFixed(2)} km`
+    : `${Math.round(distanceMeters)} m`;
+}
+
 /* ------------------------------ helpers ------------------------------ */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -691,6 +703,21 @@ function addDefaultPricingPlans(){
     DB.settings.plans.push('25 Mbps');
   }
   DB.settings.pricingDefaultsVersion = 1;
+  return true;
+}
+
+function correctLegacy600Pricing(){
+  if(DB.settings.legacyPricingCorrectionVersion===1) return false;
+  (DB.clients||[]).forEach(client=>{
+    if(num(client.rate)===600){
+      client.rate = 800;
+      client.plan = '25 Mbps';
+    }
+  });
+  (DB.billing||[]).forEach(invoice=>{
+    if(num(invoice.amountDue)===600) invoice.amountDue = 800;
+  });
+  DB.settings.legacyPricingCorrectionVersion = 1;
   return true;
 }
 
@@ -851,7 +878,7 @@ function seed(){
     ['William / Jelo',800,'2025-09-29'],
     ['Rhia Tomas',500,'2025-10-06'],
     ['Matt',800,'2025-10-20'],
-    ['Eiron (Florencio)',600,'2024-06-07'],
+    ['Eiron (Florencio)',800,'2024-06-07'],
     ['Potpot',800,'2025-11-15'],
     ['Jemar',800,'2025-11-18'],
     ['Bong Bong Store',700,'2025-11-20'],
@@ -860,20 +887,20 @@ function seed(){
     ['Jose (bumibili ng vape)',1000,'2025-12-02'],
     ['Arcelie (nanay ni Renzo)',800,'2025-12-07'],
     ['Adriano Edlyn',800,'2025-12-11'],
-    ['Mercy Miranda (Hazel)',600,'2025-12-17'],
-    ['Edgar Hipolito',600,'2026-01-05'],
-    ['Ian Miranda',600,'2026-01-04'],
-    ['Otan',600,'2026-01-08'],
-    ['Dimla (2)',600,'2026-01-07'],
-    ['Atuan/Line (lolo ni Kurt)',600,'2026-01-08'],
-    ['Rundle Miranda',600,'2026-02-18'],
+    ['Mercy Miranda (Hazel)',800,'2025-12-17'],
+    ['Edgar Hipolito',800,'2026-01-05'],
+    ['Ian Miranda',800,'2026-01-04'],
+    ['Otan',800,'2026-01-08'],
+    ['Dimla (2)',800,'2026-01-07'],
+    ['Atuan/Line (lolo ni Kurt)',800,'2026-01-08'],
+    ['Rundle Miranda',800,'2026-02-18'],
     ['Alexis Vangie (Woody Resort)',1000,'2026-02-04'],
     ['Maricel Miranda',800,'2026-02-08'],
     ['Bakla',800,'2026-02-12'],
     ['Regine (tataboy)',800,'2026-03-13'],
     ['Dada Miranda',1000,'2026-04-30'],
     ['Ruby / Jimmie',800,'2026-05-05'],
-    ['Lontoc (Kabayo)',600,'2026-05-05'],
+    ['Lontoc (Kabayo)',800,'2026-05-05'],
     ['Leslie Miranda',800,'2026-05-31'],
     ['Clarissa (Kapitan-Sarah)',800,'2026-06-06'],
     ['Amber / Job',800,'2026-06-10'],
@@ -1087,6 +1114,7 @@ async function init(){
   DB.settings.contact = DB.settings.contact || '';
   DB.settings.tin = DB.settings.tin || '';
   if(!DB.settings.homeBase) DB.settings.homeBase = { name:'Home Base / OLT', lat:14.1230, lng:121.1230 };
+  correctLegacy600Pricing();
   migratePlanPricing();
   addDefaultPricingPlans();
   (DB.clients||[]).forEach(client=>{
@@ -2654,6 +2682,27 @@ function openForm(table, id, initialValues={}){
     let input;
     if(f.t==='select'){
       const opts = f.opts ? f.opts() : [];
+      if(f.k==='plan'){
+        const customPlanValue = '__custom_plan__';
+        const planOptions = opts.filter(o=>String(o).toLowerCase()!=='custom');
+        const hasPlanOption = planOptions.some(o=>String(o)===String(val));
+        const selectedPlan = hasPlanOption ? val : (val ? customPlanValue : '');
+        const customSpeed = !hasPlanOption && val
+          ? (String(val).match(/^(\d+(?:\.\d+)?)\s*mbps$/i)||[])[1] || ''
+          : '';
+        input = `<select name="${f.k}" ${f.req?'required':''}>
+          <option value="">— select —</option>
+          ${planOptions.map(o=>`<option value="${esc(o)}" ${String(selectedPlan)===String(o)?'selected':''}>${esc(o)}</option>`).join('')}
+          <option value="${customPlanValue}" ${selectedPlan===customPlanValue?'selected':''}>Custom</option>
+        </select>`;
+        const showCustomSpeed = selectedPlan===customPlanValue;
+        return `<div class="field"><span>${esc(f.l)}${f.req?' *':''}</span>${input}
+          <label class="field" data-custom-speed-field style="display:${showCustomSpeed?'block':'none'}">
+            <span>Custom speed (Mbps)</span>
+            <input name="customMbps" type="number" min="0.01" step="any" value="${esc(customSpeed)}" ${showCustomSpeed?'required':''}>
+          </label>
+          ${f.hint?`<small class="field-hint">${esc(f.hint)}</small>`:''}</div>`;
+      }
       input = `<select name="${f.k}" ${f.req?'required':''}>
         <option value="">— select —</option>
         ${opts.map(o=>`<option value="${esc(o)}" ${String(val)===String(o)?'selected':''}>${esc(o)}</option>`).join('')}
@@ -2699,6 +2748,17 @@ function openForm(table, id, initialValues={}){
       if(f.t==='number' && v!=='') v = Number(v);
       obj[f.k] = v;
     });
+
+    if(schema.fields.some(f=>f.k==='plan')){
+      const plan = e.target.elements.namedItem('plan');
+      if(plan && plan.value==='__custom_plan__'){
+        const customMbps = Number(e.target.elements.namedItem('customMbps').value);
+        if(!Number.isFinite(customMbps) || customMbps<=0){
+          toast('Enter a valid custom speed in Mbps'); return;
+        }
+        obj.plan = `${customMbps} Mbps`;
+      }
+    }
 
     const old = isNew ? null : {...row};
 
@@ -3185,6 +3245,14 @@ document.addEventListener('change', e=>{
   if(e.target.id==='monthPick'){ state.month = e.target.value; render(); }
   if(e.target.id==='napPicker'){ state.selectedNapId = e.target.value; render(); }
   if(e.target.name==='plan' && e.target.form?.id==='modalForm'){
+    const customSpeedField = e.target.form.querySelector('[data-custom-speed-field]');
+    if(customSpeedField){
+      const isCustom = e.target.value==='__custom_plan__';
+      customSpeedField.style.display = isCustom ? 'block' : 'none';
+      customSpeedField.querySelector('input').required = isCustom;
+    }
+  }
+  if(e.target.name==='plan' && e.target.form?.id==='modalForm'){
     const rate = e.target.form.elements.namedItem('rate');
     const standardRate = standardPlanRate(e.target.value);
     if(rate && standardRate!==null) rate.value = standardRate;
@@ -3305,6 +3373,7 @@ document.getElementById('fileInput').addEventListener('change', e=>{
       DB.settings.dueDay = DB.settings.dueDay || 5;
       DB.settings.business = DB.settings.business || 'My ISP';
       if(!DB.settings.homeBase) DB.settings.homeBase = {name:'Home Base / OLT', lat:14.1230, lng:121.1230};
+      correctLegacy600Pricing();
       migratePlanPricing();
       addDefaultPricingPlans();
       (DB.payments||[]).forEach(p=>{ if(!p.receiptNo) p.receiptNo = nextReceiptNo(); });

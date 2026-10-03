@@ -1,0 +1,199 @@
+/* ==========================================================================
+   NAP Boxes — extracted from index.html
+   Relies on CSS variables (--bg, --surface, --accent, …) set in the parent
+   page's :root block.
+   ========================================================================== */
+
+/* ---------- Subtabs (Grid / Map / Splitter) ---------- */
+.subtabs{
+  display:inline-flex;gap:4px;background:var(--surface-3);
+  border-radius:12px;padding:4px;margin-bottom:12px;
+}
+.subtab{
+  border:none;background:transparent;color:var(--muted);
+  padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit;white-space:nowrap;
+}
+.subtab.active{background:var(--accent);color:#fff;box-shadow:0 2px 6px rgba(59,130,246,.4)}
+
+/* ---------- Map ---------- */
+#mapWrap{
+  position:relative;border-radius:var(--radius);overflow:hidden;
+  border:1px solid var(--line);box-shadow:var(--shadow);
+}
+#map{height:min(65vh,560px);width:100%;z-index:0;background:#0f172a}
+.map-status{
+  position:absolute;z-index:450;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(420px,calc(100% - 32px));padding:14px 16px;
+  border:1px solid var(--line-2);border-radius:12px;
+  background:rgba(15,23,42,.96);color:var(--ink-2);
+  box-shadow:var(--shadow);text-align:center;font-size:13px;
+}
+.map-status[hidden]{display:none}
+.map-status strong{display:block;margin-bottom:4px;color:var(--ink)}
+.map-overlay{
+  position:absolute;left:10px;bottom:10px;z-index:500;
+  background:rgba(15,23,42,.9);backdrop-filter:blur(4px);
+  padding:9px 11px;border-radius:10px;border:1px solid var(--line-2);
+  font-size:11px;color:var(--ink-2);box-shadow:0 3px 10px rgba(0,0,0,.4);
+  max-width:220px;
+}
+.map-overlay b{color:var(--ink);display:block;margin-bottom:4px;font-size:11px;
+  text-transform:uppercase;letter-spacing:.04em}
+.map-overlay .row{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.map-help{
+  position:absolute;right:10px;top:10px;z-index:500;
+  background:rgba(15,23,42,.9);backdrop-filter:blur(4px);
+  padding:8px 11px;border-radius:10px;border:1px solid var(--line-2);
+  font-size:11px;color:var(--ink-2);box-shadow:0 3px 10px rgba(0,0,0,.4);
+  max-width:200px;line-height:1.5;
+}
+.map-context-menu{
+  position:absolute;z-index:600;display:grid;gap:6px;min-width:180px;
+  padding:8px;border:1px solid var(--line-2);border-radius:10px;
+  background:rgba(15,23,42,.97);box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+.map-context-menu[hidden]{display:none}
+.map-context-menu .btn{justify-content:flex-start}
+.map-link{
+  padding:0;border:0;background:none;color:var(--accent);
+  font:inherit;text-decoration:underline;cursor:pointer;
+}
+.map-link:hover{background:none;color:#93c5fd}
+.name-badge-marker{
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:700;font-size:11px;
+  padding:4px 9px;border-radius:14px;border:2px solid #fff;
+  box-shadow:0 3px 8px rgba(0,0,0,.35);
+  white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.3);
+  transition:transform .15s;
+}
+.name-badge-marker:hover{transform:scale(1.1)}
+.home-marker{
+  width:34px;height:34px;border-radius:6px;
+  background:#334155;border:2px solid #fff;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:16px;box-shadow:0 4px 10px rgba(0,0,0,.5);
+}
+.client-house-marker{
+  width:32px;height:32px;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;
+  background:#f59e0b;border:2px solid #fff;color:#111827;
+  font-size:17px;box-shadow:0 3px 9px rgba(0,0,0,.45);
+}
+.mapboxgl-popup-content{
+  background:var(--surface);color:var(--ink);
+  border:1px solid var(--line-2);border-radius:8px;
+}
+.mapboxgl-popup-content b{color:var(--ink)}
+.mapboxgl-popup-close-button{color:var(--muted);font-size:18px}
+.mapboxgl-popup-tip{
+  border-top-color:var(--surface)!important;
+  border-bottom-color:var(--surface)!important;
+}
+.mapboxgl-ctrl-group button{background-color:var(--surface-3)!important}
+.mapboxgl-ctrl-group button span{filter:invert(1)}
+.mapboxgl-ctrl-attrib{font-size:10px}
+
+/* ---------- Splitter panel ---------- */
+.splitter-wrap{padding:14px 0}
+.splitter{
+  background:linear-gradient(180deg,#26324a,#1a2438);
+  border-radius:12px;padding:42px 30px 52px;position:relative;
+  box-shadow:0 20px 50px rgba(0,0,0,.5),
+             inset 0 0 0 2px #334560,
+             inset 0 1px 0 rgba(255,255,255,.08);
+  max-width:820px;margin:0 auto;
+}
+.hole{
+  position:absolute;width:16px;height:16px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,#1a1a1a,#000);
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.1),0 2px 3px rgba(0,0,0,.6);
+}
+.hole.left1{left:14px;top:60px}
+.hole.left2{left:14px;bottom:60px}
+.hole.right1{right:14px;top:60px}
+.hole.right2{right:14px;bottom:60px}
+.splitter-label{
+  position:absolute;top:14px;left:44px;
+  font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.15em;
+}
+.splitter-id{
+  position:absolute;top:14px;right:44px;
+  font-size:11px;font-weight:800;color:#93c5fd;
+  background:var(--surface-3);border-radius:6px;padding:3px 9px;
+  box-shadow:0 2px 4px rgba(0,0,0,.3);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  border:1px solid var(--line-2);
+}
+.splitter-ports{display:grid;gap:6px;padding:14px 8px 0}
+.port-cell{
+  position:relative;height:72px;cursor:pointer;
+  display:flex;justify-content:center;align-items:flex-end;
+  transition:transform .18s;
+}
+.port-cell:hover{transform:translateY(-4px)}
+.port-cell .connector{
+  position:absolute;top:10px;width:42px;height:34px;
+  background:linear-gradient(180deg,#1590ff,#006bd6);
+  border-radius:5px 5px 2px 2px;z-index:2;
+  box-shadow:inset 0 2px 2px rgba(255,255,255,.25),0 4px 5px rgba(0,0,0,.5);
+}
+.port-cell .body{
+  width:44px;height:46px;
+  background:linear-gradient(180deg,#252525,#090909);
+  border-radius:4px;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.1),0 3px 5px rgba(0,0,0,.7);
+}
+.port-cell .num{
+  position:absolute;top:-4px;left:50%;transform:translateX(-50%);
+  font-size:10px;font-weight:800;color:var(--ink-2);
+}
+.port-cell.available .connector{background:linear-gradient(180deg,#168bff,#0067c9)}
+.port-cell.connected .connector{background:linear-gradient(180deg,#22c55e,#15803d)}
+.port-cell.warning   .connector{background:linear-gradient(180deg,#facc15,#ca8a04)}
+.port-cell.broken    .connector{background:linear-gradient(180deg,#9ca3af,#4b5563)}
+.port-cell.selected .body{outline:3px solid #38bdf8;outline-offset:2px}
+.port-cell.selected .connector{
+  box-shadow:0 0 14px #38bdf8,inset 0 2px 2px rgba(255,255,255,.25);
+}
+.port-cell .tick{
+  position:absolute;bottom:2px;right:6px;
+  font-size:9px;font-weight:800;padding:1px 4px;border-radius:4px;
+}
+.port-cell.connected .tick.paid  {background:#14532d;color:#86efac}
+.port-cell.connected .tick.unpaid{background:#7f1d1d;color:#fca5a5}
+.splitter-foot{
+  position:absolute;bottom:14px;left:44px;right:44px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:10px;color:var(--muted);font-weight:600;
+}
+.splitter-foot .dot{
+  display:inline-block;width:8px;height:8px;border-radius:50%;
+  margin-right:5px;vertical-align:middle;
+}
+@media(max-width:640px){
+  .splitter{padding:36px 14px 46px}
+  .port-cell{height:64px}
+  .port-cell .connector{width:36px;height:30px;top:8px}
+  .port-cell .body{width:38px;height:40px}
+  .splitter-label{left:32px;font-size:9px}
+  .splitter-id{right:32px;font-size:10px}
+  .splitter-foot{left:32px;right:32px}
+}
+
+/* ---------- Port chip grid (napGridView) ---------- */
+.ports{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));
+  gap:7px;margin-top:10px;
+}
+.port{
+  border:1px solid var(--line);border-radius:9px;padding:7px 4px;
+  text-align:center;font-size:10px;font-weight:600;
+  background:var(--surface-2);cursor:pointer;
+}
+.port .n{display:block;font-size:13px;font-weight:700;margin-bottom:2px}
+.port.used    {background:var(--blue-soft);border-color:#1e40af;color:#93c5fd}
+.port.free    {background:var(--surface-3);color:var(--muted)}
+.port.faulty  {background:var(--red-soft);border-color:#991b1b;color:#fca5a5}
+.port.reserved{background:var(--amber-soft);border-color:#92400e;color:#fcd34d}
