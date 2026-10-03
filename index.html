@@ -941,7 +941,7 @@ function seed(){
   ];
 
   return {
-    clients, billing:[], payments:[], napBoxes:[], napPorts:[], complaints:[], installs:[], inventory:[],
+    clients, billing, payments, napBoxes, napPorts, complaints, installs, inventory,
     settings:{
       business:'My ISP',
       tagline:'Fiber Internet Service Provider',
@@ -1508,9 +1508,6 @@ async function initMap(){
   let mapCenter = [Number(hb.lat), Number(hb.lng)];
   let mapZoom = 15;
   if(mapInstance){
-    const center = mapInstance.getCenter();
-    mapCenter = [center.lat, center.lng];
-    mapZoom = mapInstance.getZoom();
     mapInstance.remove();
     mapInstance = null;
   }
