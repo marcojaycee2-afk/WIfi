@@ -622,13 +622,13 @@ function migratePlanPricing(){
 
 function standardPlanRate(plan){
   const key = planKey(plan);
-  if(key==='25mbps') return 800;
+  if(key==='25mbps') return 500;
   if(key==='50mbps') return 1000;
   return null;
 }
 
 function planForRate(rate){
-  if(rate===800) return '25 Mbps';
+  if(rate===500) return '25 Mbps';
   if(rate===1000) return '50 Mbps';
   return 'Unspecified';
 }
@@ -2755,6 +2755,11 @@ document.addEventListener('change', e=>{
     const rate = e.target.form.elements.namedItem('rate');
     const standardRate = standardPlanRate(e.target.value);
     if(rate && standardRate!==null) rate.value = standardRate;
+  }
+  if(e.target.name==='rate' && e.target.form?.id==='modalForm'){
+    const plan = e.target.form.elements.namedItem('plan');
+    const matchingPlan = planForRate(Number(e.target.value));
+    if(plan && matchingPlan!=='Unspecified') plan.value = matchingPlan;
   }
 });
 

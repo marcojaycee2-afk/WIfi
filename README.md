@@ -18,7 +18,7 @@ The admin username defaults to `telecomadmin`; you may override it with `ADMIN_U
 
 Sign-in uses an HTTP-only, same-site session cookie that expires after 8 hours. Login attempts are rate limited per client IP. Sign out from the dashboard using the **Sign out** button. Use HTTPS when hosting publicly; production cookies are marked Secure.
 
-New clients default to ₱800/month for 25 Mbps and ₱1,000/month for 50 Mbps. The default roster contains the 68 customers transcribed from the supplied list, with continuous client IDs; no customers were invented for the two missing count numbers. Only exact ₱800 and ₱1,000 rates are assigned those speeds, while other rates remain `Unspecified` for manual assignment. The monthly rate remains editable per client, so you can enter a discounted amount; saved custom rates are preserved.
+New clients default to ₱500/month for 25 Mbps and ₱1,000/month for 50 Mbps. Entering an exact ₱500 or ₱1,000 monthly rate selects the matching plan; other rates leave the plan for you to set, and rates are always editable for discounts. The default roster contains the 68 customers transcribed from the supplied list, with continuous client IDs and no invented customers for the two missing count numbers. Existing saved customer data is not replaced automatically.
 
 The included Compose setup publishes the app only on localhost; add TLS before making it reachable by other devices or the public internet.
 
