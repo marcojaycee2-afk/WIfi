@@ -8,6 +8,8 @@
 
 <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css"/>
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
 <style>
 :root{
@@ -557,6 +559,8 @@ const TABS = [
 
 let DB = null;
 let mapInstance = null;
+let mapEngine = null;
+let leafletMapOverlays = null;
 let mapMarkers = {};
 let mapLines = [];
 let mapLineEvents = [];
@@ -1466,19 +1470,52 @@ async function initMap(){
   };
   const hb = DB.settings.homeBase;
   if(mapInstance){ mapInstance.remove(); mapInstance = null; }
+  mapEngine = null;
+  leafletMapOverlays = null;
   showMapStatus('Loading map…', 'Connecting to the map service.');
   try{
     const response = await fetch('/api/config');
     if(!response.ok) throw new Error('Could not load map configuration');
     const {mapboxAccessToken} = await response.json();
     if(!mapboxAccessToken){
-      showMapStatus('Map token not configured', 'Set MAPBOX_ACCESS_TOKEN on the app service to a Mapbox public token starting with pk., then redeploy.');
+      if(typeof L==='undefined'){
+        showMapStatus('Map library unavailable', 'Allow network access to unpkg.com and reload the page.');
+        return;
+      }
+      mapEngine = 'leaflet';
+      mapInstance = L.map(el, {zoomControl:false}).setView([Number(hb.lat), Number(hb.lng)], 15);
+      const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom:19,
+        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(mapInstance);
+      let tilesLoaded = false;
+      tiles.on('tileload', ()=>{
+        tilesLoaded = true;
+        hideMapStatus();
+      });
+      tiles.on('tileerror', ()=>{
+        if(!tilesLoaded) showMapStatus('Map tiles unavailable', 'Check your internet connection and allow tile.openstreetmap.org.');
+      });
+      L.control.zoom({position:'topright'}).addTo(mapInstance);
+      leafletMapOverlays = L.layerGroup().addTo(mapInstance);
+      const map3dButton = document.getElementById('map3dToggle');
+      if(map3dButton) map3dButton.hidden = true;
+      renderLeafletMapMarkers();
+      if(state.mapPlaceClient){
+        mapInstance.once('click', event=>{
+          state.mapPlaceClient = false;
+          openClientHouseForm(event.latlng.lat, event.latlng.lng);
+        });
+      }
+      if(!tilesLoaded) showMapStatus('Loading map…', 'Loading OpenStreetMap tiles.');
+      mapInstance.invalidateSize();
       return;
     }
     if(typeof mapboxgl==='undefined'){
       showMapStatus('Map library unavailable', 'Allow network access to api.mapbox.com and reload the page.');
       return;
     }
+    mapEngine = 'mapbox';
     mapboxgl.accessToken = mapboxAccessToken;
     mapInstance = new mapboxgl.Map({
       container:el,
@@ -1521,6 +1558,105 @@ async function initMap(){
     console.error('Mapbox failed to load', error);
     showMapStatus('Map could not start', 'Check MAPBOX_ACCESS_TOKEN and allow this site’s domain in your Mapbox token settings.');
   }
+}
+
+function renderLeafletMapMarkers(){
+  if(mapEngine!=='leaflet' || !mapInstance || !leafletMapOverlays) return;
+  leafletMapOverlays.clearLayers();
+  mapMarkers = {};
+  const hb = DB.settings.homeBase;
+  const addLine = (start, end, color, dashed, tooltip)=>{
+    L.polyline([start,end], {
+      color,
+      weight:dashed ? 2 : 3,
+      opacity:0.8,
+      dashArray:dashed ? '6 6' : null
+    }).bindTooltip(esc(tooltip)).addTo(leafletMapOverlays);
+  };
+  const makeMarker = (key, element, lat, lng, popup, onDrag)=>{
+    const marker = L.marker([Number(lat),Number(lng)], {
+      draggable:true,
+      icon:L.divIcon({className:'', html:element.outerHTML, iconSize:null, iconAnchor:[16,16]})
+    }).addTo(leafletMapOverlays);
+    marker.bindPopup(popup);
+    marker.on('dragend', ()=>{
+      const point = marker.getLatLng();
+      onDrag(point);
+    });
+    mapMarkers[key] = marker;
+    return marker;
+  };
+
+  const homeElement = document.createElement('div');
+  homeElement.className = 'home-marker';
+  homeElement.textContent = '🏠';
+  makeMarker('home', homeElement, hb.lat, hb.lng,
+    `<b>${esc(hb.name)}</b><br><span class="small muted">Drag to reposition</span>`,
+    point=>{
+      DB.settings.homeBase.lat = point.lat;
+      DB.settings.homeBase.lng = point.lng;
+      save(); renderLeafletMapMarkers();
+    }
+  );
+
+  DB.napBoxes.forEach(box=>{
+    if(box.lat==='' || box.lng==='' || !Number.isFinite(Number(box.lat)) || !Number.isFinite(Number(box.lng))) return;
+    let sourceLat = hb.lat, sourceLng = hb.lng, uplinkName = hb.name;
+    if(box.uplinkId){
+      const parent = DB.napBoxes.find(item=>item.id===box.uplinkId);
+      if(parent && parent.lat!=='' && parent.lng!==''){
+        sourceLat = parent.lat; sourceLng = parent.lng; uplinkName = parent.label || parent.id;
+      }
+    }
+    const distance = getDistanceStr(sourceLat, sourceLng, box.lat, box.lng);
+    addLine([Number(sourceLat),Number(sourceLng)], [Number(box.lat),Number(box.lng)],
+      box.color || '#3b82f6', Boolean(box.uplinkId), distance);
+
+    const element = document.createElement('div');
+    element.className = 'name-badge-marker';
+    element.style.background = box.color || '#3b82f6';
+    element.textContent = box.id;
+    const popup = `
+      <b>${esc(box.id)}</b><br>
+      <span style="font-size:11px;color:#94a3b8">${esc(box.label||'')}</span><br>
+      <span style="font-size:11px;color:#94a3b8">Uplink: ${esc(uplinkName)} · ${esc(distance)}</span><br><br>
+      <button onclick="openSplitterFromMap('${esc(box.id)}')"
+        style="background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
+        Open Splitter
+      </button>`;
+    makeMarker(box.id, element, box.lat, box.lng, popup, point=>{
+      const current = DB.napBoxes.find(item=>item.id===box.id);
+      if(current){ current.lat = point.lat; current.lng = point.lng; save(); renderLeafletMapMarkers(); }
+    });
+  });
+
+  DB.clients.forEach(client=>{
+    if(client.lat==='' || client.lng==='' || client.lat==null || client.lng==null ||
+       !Number.isFinite(Number(client.lat)) || !Number.isFinite(Number(client.lng))) return;
+    const lat = Number(client.lat), lng = Number(client.lng);
+    const nap = DB.napBoxes.find(box=>box.id===client.napId);
+    if(nap && nap.lat!=='' && nap.lng!=='' && Number.isFinite(Number(nap.lat)) && Number.isFinite(Number(nap.lng))){
+      addLine([Number(nap.lat),Number(nap.lng)], [lat,lng], '#22c55e', true,
+        `Client drop · ${getDistanceStr(nap.lat,nap.lng,lat,lng)}`);
+    }
+    const element = document.createElement('div');
+    element.className = 'client-house-marker';
+    element.textContent = '⌂';
+    const connection = nap ? `${esc(nap.id)} · port ${esc(client.port||'—')}` : 'Not connected to a NAP';
+    const popup = `
+      <b>${esc(client.name)}</b><br>
+      <span style="font-size:11px;color:#94a3b8">${esc(client.plan||'')}</span><br>
+      <span style="font-size:11px;color:#94a3b8">${connection}</span><br><br>
+      <button onclick="openClientFromMap(${esc(JSON.stringify(client.id))})"
+        style="background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
+        Edit Client
+      </button>`;
+    makeMarker(`client:${client.id}`, element, lat, lng, popup, point=>{
+      client.lat = point.lat;
+      client.lng = point.lng;
+      save(); renderLeafletMapMarkers();
+    });
+  });
 }
 
 function addMapBuildings(){
@@ -1586,6 +1722,10 @@ function addMapLine(coordinates, color, dashed, tooltip){
 
 function renderMapMarkers(){
   if(!mapInstance) return;
+  if(mapEngine==='leaflet'){
+    renderLeafletMapMarkers();
+    return;
+  }
   Object.values(mapMarkers).forEach(marker=>marker.remove());
   mapLineEvents.forEach(({layerId,onEnter,onLeave})=>{
     mapInstance.off('mouseenter', layerId, onEnter);
