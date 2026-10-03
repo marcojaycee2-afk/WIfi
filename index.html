@@ -1546,7 +1546,7 @@ function napMapView(){
     </div>
     <div class="map-help">
       <b>Map</b><br>
-      Right-click to add a NAP box or client at that location. Drag markers to reposition; select a NAP box to open its splitter.
+      Right-click to add a NAP box or client at that location. Drag home and client markers to reposition them; edit a NAP box to change its coordinates. Select a NAP box to open its splitter.
       <div style="margin-top:8px"><button class="btn sm" id="map3dToggle" type="button">Enable 3D</button></div>
     </div>
     <div class="map-overlay">
@@ -1720,7 +1720,7 @@ function renderLeafletMapMarkers(){
   const makeMarker = (key, element, lat, lng, popup, onDrag)=>{
     const isNapBox = element.classList.contains('napbox-map-marker');
     const marker = L.marker([Number(lat),Number(lng)], {
-      draggable:true,
+      draggable:!isNapBox,
       icon:L.divIcon({
         className:'',
         html:element.outerHTML,
@@ -1729,7 +1729,7 @@ function renderLeafletMapMarkers(){
       })
     }).addTo(leafletMapOverlays);
     marker.bindPopup(popup);
-    marker.on('dragend', ()=>{
+    if(!isNapBox) marker.on('dragend', ()=>{
       const point = marker.getLatLng();
       onDrag(point);
     });
@@ -1920,14 +1920,9 @@ function renderMapMarkers(){
     const element = document.createElement('div');
     element.innerHTML = napBoxMarkerMarkup(box.id);
     const markerElement = element.firstElementChild;
-    const m = new mapboxgl.Marker({element:markerElement, draggable:true, anchor:'bottom'})
+    const m = new mapboxgl.Marker({element:markerElement, draggable:false, anchor:'bottom'})
       .setLngLat([Number(box.lng),Number(box.lat)])
       .addTo(mapInstance);
-    m.on('dragend', ()=>{
-      const p = m.getLngLat();
-      const b = DB.napBoxes.find(x=>x.id===box.id);
-      if(b){ b.lat = p.lat; b.lng = p.lng; save(); renderMapMarkers(); }
-    });
     m.setPopup(new mapboxgl.Popup({offset:20}).setHTML(`
       <b>${esc(box.id)}</b><br>
       <span style="font-size:11px;color:#94a3b8">${esc(box.label||'')}</span><br>
