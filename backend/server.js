@@ -5,7 +5,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Pool } = require('pg');
 const { createAuth } = require('./auth');
-const { createGoogleAuthenticator } = require('./google-auth');
 
 const app = express();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -15,31 +14,21 @@ const host = process.env.HOST || '127.0.0.1';
 app.use(express.json({ limit: '10mb' }));
 
 const auth = createAuth({
+  username: process.env.ADMIN_USERNAME,
+  password: process.env.ADMIN_PASSWORD,
   secret: process.env.SESSION_SECRET,
   secureCookies: process.env.NODE_ENV === 'production'
 });
-const googleAuth = createGoogleAuthenticator({
-  clientId: process.env.GOOGLE_CLIENT_ID || '',
-  adminEmail: process.env.GOOGLE_ADMIN_EMAIL || ''
-});
 
-app.post('/api/login', auth.loginRateLimit, async (req, res) => {
-  const { credential } = req.body || {};
-  try {
-    await googleAuth.verifyCredential(credential);
-  } catch (error) {
-    console.warn('Google sign-in verification failed:', error.message);
+app.post('/api/login', auth.loginRateLimit, (req, res) => {
+  const { username, password } = req.body || {};
+  if (!auth.credentialsMatch(username, password)) {
     auth.recordFailedLogin(req);
-    return res.status(401).json({ error: 'Invalid or unauthorized Google account' });
+    return res.status(401).json({ error: 'Invalid username or password' });
   }
   auth.clearFailedLogins(req);
   auth.issueSession(res);
   return res.json({ authenticated: true });
-});
-
-app.get('/api/auth/config', (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || '' });
 });
 
 app.post('/api/logout', auth.requireAuth, (req, res) => {
@@ -103,9 +92,9 @@ app.use((error, req, res, next) => {
 
 async function start(){
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-  if (!process.env.GOOGLE_CLIENT_ID) throw new Error('GOOGLE_CLIENT_ID is required');
-  if (!process.env.GOOGLE_ADMIN_EMAIL || !process.env.GOOGLE_ADMIN_EMAIL.includes('@')) {
-    throw new Error('GOOGLE_ADMIN_EMAIL must be a valid email address');
+  if (!process.env.ADMIN_USERNAME) throw new Error('ADMIN_USERNAME is required');
+  if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 12) {
+    throw new Error('ADMIN_PASSWORD must be at least 12 characters');
   }
   if (!process.env.SESSION_SECRET || Buffer.byteLength(process.env.SESSION_SECRET) < 32) {
     throw new Error('SESSION_SECRET must be at least 32 bytes');

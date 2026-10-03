@@ -2,36 +2,21 @@ const assert = require('node:assert/strict');
 const express = require('express');
 const { after, before, test } = require('node:test');
 const { createAuth } = require('./auth');
-const { createGoogleAuthenticator } = require('./google-auth');
 
 const app = express();
 const auth = createAuth({
+  username: 'admin',
+  password: 'correct horse battery',
   secret: 'test-session-secret-with-at-least-32-bytes',
   secureCookies: true
 });
-const googleAuth = createGoogleAuthenticator({
-  clientId: 'test-client-id.apps.googleusercontent.com',
-  adminEmail: 'owner@example.com',
-  verifyIdToken: async credential => {
-    if (credential !== 'valid-google-token') throw new Error('Invalid token');
-    return {
-      getPayload: () => ({
-        sub: 'google-user-123',
-        email: 'OWNER@example.com',
-        email_verified: true
-      })
-    };
-  }
-});
 
 app.use(express.json());
-app.post('/api/login', auth.loginRateLimit, async (req, res) => {
-  const { credential } = req.body || {};
-  try {
-    await googleAuth.verifyCredential(credential);
-  } catch {
+app.post('/api/login', auth.loginRateLimit, (req, res) => {
+  const { username, password } = req.body || {};
+  if (!auth.credentialsMatch(username, password)) {
     auth.recordFailedLogin(req);
-    return res.status(401).json({ error: 'Invalid or unauthorized Google account' });
+    return res.status(401).json({ error: 'Invalid username or password' });
   }
   auth.clearFailedLogins(req);
   auth.issueSession(res);
@@ -69,14 +54,14 @@ test('protects routes, authenticates, and clears the session on logout', async (
   const invalid = await fetch(`${baseUrl}/api/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ credential: 'invalid-google-token' })
+    body: JSON.stringify({ username: 'admin', password: 'wrong' })
   });
   assert.equal(invalid.status, 401);
 
   const login = await fetch(`${baseUrl}/api/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ credential: 'valid-google-token' })
+    body: JSON.stringify({ username: 'admin', password: 'correct horse battery' })
   });
   assert.equal(login.status, 200);
   const cookie = login.headers.get('set-cookie');
@@ -116,36 +101,9 @@ test('rate limits repeated invalid logins', async () => {
     response = await fetch(`${baseUrl}/api/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ credential: 'invalid-google-token' })
+      body: JSON.stringify({ username: 'admin', password: 'wrong' })
     });
   }
   assert.equal(response.status, 429);
   assert.ok(Number(response.headers.get('retry-after')) > 0);
-});
-
-test('accepts only a verified allowlisted Google email and verifies token audience', async () => {
-  let observedAudience;
-  const verifier = createGoogleAuthenticator({
-    clientId: 'configured-client-id',
-    adminEmail: 'owner@example.com',
-    verifyIdToken: async (credential, audience) => {
-      observedAudience = audience;
-      return {
-        getPayload: () => ({
-          sub: 'google-user-123',
-          email: credential === 'other-user' ? 'other@example.com' : 'owner@example.com',
-          email_verified: credential !== 'unverified'
-        })
-      };
-    }
-  });
-
-  assert.deepEqual(await verifier.verifyCredential('valid'), {
-    subject: 'google-user-123',
-    email: 'owner@example.com'
-  });
-  assert.equal(observedAudience, 'configured-client-id');
-  await assert.rejects(verifier.verifyCredential('other-user'), /not authorized/);
-  await assert.rejects(verifier.verifyCredential('unverified'), /not authorized/);
-  await assert.rejects(verifier.verifyCredential(''), /required/);
 });
