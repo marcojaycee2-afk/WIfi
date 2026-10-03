@@ -18,8 +18,12 @@ The admin username defaults to `telecomadmin`; you may override it with `ADMIN_U
 
 Sign-in uses an HTTP-only, same-site session cookie that expires after 8 hours. Login attempts are rate limited per client IP. Sign out from the dashboard using the **Sign out** button. Use HTTPS when hosting publicly; production cookies are marked Secure.
 
-New clients default to ₱500/month for 25 Mbps and ₱1,000/month for 50 Mbps. Entering an exact ₱500 or ₱1,000 monthly rate selects the matching plan; other rates leave the plan for you to set, and rates are always editable for discounts. The default roster contains the 68 customers transcribed from the supplied list, with continuous client IDs and no invented customers for the two missing count numbers. Existing saved customer data is not replaced automatically.
+New clients default to ₱800/month for 25 Mbps and ₱1,000/month for 50 Mbps. An exact ₱800 rate selects 25 Mbps and an exact ₱1,000 rate selects 50 Mbps. Rates below ₱800 and all other rates remain Unspecified for manual plan assignment; rates are always editable for discounts. The default roster contains the 68 customers transcribed from the supplied list, with continuous client IDs and no invented customers for the two missing count numbers. Existing saved customer data is not replaced automatically.
+
+To connect a customer to a NAP port, first add a NAP box with its port count under **NAP Boxes**, then use **Connect** beside that customer on the **Clients** page. The connection dialog lists available ports and prevents assigning a port already in use.
 
 The included Compose setup publishes the app only on localhost; add TLS before making it reachable by other devices or the public internet.
 
-Use a Mapbox public token beginning with `pk.`. It is delivered to the browser for map rendering, so restrict it to your app's URL in your Mapbox account. Never use a secret `sk.` token in the browser app.
+The map works without a token using OpenStreetMap tiles. If `MAPBOX_ACCESS_TOKEN` is set on the app service to a Mapbox public token beginning with `pk.`, the app uses Mapbox instead. Mapbox tokens are delivered to the browser, so allow your deployed site's domain in the token settings; never use a secret `sk.` token in the browser app.
+
+The OpenStreetMap fallback requires an internet connection to `tile.openstreetmap.org` and includes OpenStreetMap attribution. Its 3D toggle is available only when Mapbox is configured.
