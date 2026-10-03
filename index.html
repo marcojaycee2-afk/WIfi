@@ -1874,6 +1874,10 @@ function renderLeafletMapMarkers(){
       <button onclick="openClientFromMap(${esc(JSON.stringify(client.id))})"
         style="background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
         Edit Client
+      </button>
+      <button onclick="deleteRecord('clients',${esc(JSON.stringify(client.id))})"
+        style="background:#991b1b;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:6px">
+        Delete Client
       </button>`;
     makeMarker(`client:${client.id}`, element, lat, lng, popup, point=>{
       client.lat = point.lat;
@@ -2057,6 +2061,10 @@ function renderMapMarkers(){
       <button onclick="openClientFromMap(${esc(JSON.stringify(client.id))})"
         style="background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
         Edit Client
+      </button>
+      <button onclick="deleteRecord('clients',${esc(JSON.stringify(client.id))})"
+        style="background:#991b1b;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:6px">
+        Delete Client
       </button>
     `));
     mapMarkers[`client:${client.id}`] = marker;
