@@ -622,13 +622,13 @@ function migratePlanPricing(){
 
 function standardPlanRate(plan){
   const key = planKey(plan);
-  if(key==='25mbps') return 500;
+  if(key==='25mbps') return 800;
   if(key==='50mbps') return 1000;
   return null;
 }
 
 function planForRate(rate){
-  if(rate===500) return '25 Mbps';
+  if(rate===800) return '25 Mbps';
   if(rate===1000) return '50 Mbps';
   return 'Unspecified';
 }
@@ -1218,6 +1218,7 @@ function pageClients(){
       <td class="right">${bal>0?`<span class="badge b-red">${peso(bal)}</span>`:'<span class="muted small">—</span>'}</td>
       <td><span class="badge ${stCls}">${esc(c.status)}</span></td>
       <td class="right"><div class="row-actions">
+        <button class="btn sm" data-act="connectClient" data-id="${esc(c.id)}">${c.napId?'Change Port':'Connect'}</button>
         <button class="btn sm" data-act="edit" data-table="clients" data-id="${esc(c.id)}">Edit</button>
         <button class="btn sm danger" data-act="del" data-table="clients" data-id="${esc(c.id)}">✕</button>
       </div></td>
@@ -2575,6 +2576,100 @@ function openPortModal(napId, port){
   });
 }
 
+function openClientPortModal(clientId){
+  const client = DB.clients.find(c=>c.id===clientId);
+  if(!client) return;
+  if(!DB.napBoxes.length){
+    document.getElementById('modal').innerHTML = `
+      <div class="modal-head">
+        <h2>Connect ${esc(client.name)}</h2>
+        <button class="btn sm" data-act="closeModal">✕</button>
+      </div>
+      <p class="muted">Add a NAP box and its port count before connecting a customer.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-act="closeModal">Cancel</button>
+        <button type="button" class="btn primary" data-act="goNaps">Go to NAP Boxes</button>
+      </div>`;
+    document.getElementById('backdrop').classList.add('open');
+    return;
+  }
+
+  const getAvailablePorts = napId=>{
+    const box = DB.napBoxes.find(item=>item.id===napId);
+    if(!box) return [];
+    return Array.from({length:num(box.totalPorts)},(_,index)=>index+1).filter(port=>{
+      const otherClient = DB.clients.find(item=>
+        item.id!==client.id && item.napId===napId && Number(item.port)===port
+      );
+      if(otherClient) return false;
+      const record = DB.napPorts.find(item=>item.napId===napId && Number(item.port)===port);
+      if(record && record.clientId && record.clientId!==client.id) return false;
+      if(record && record.clientId!==client.id && record.status!=='Free') return false;
+      return true;
+    });
+  };
+  const boxOptions = DB.napBoxes.map(box=>
+    `<option value="${esc(box.id)}" ${box.id===client.napId?'selected':''}>${esc(box.id)}${box.label?` · ${esc(box.label)}`:''}</option>`
+  ).join('');
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-head">
+      <h2>Connect ${esc(client.name)}</h2>
+      <button class="btn sm" data-act="closeModal">✕</button>
+    </div>
+    <form id="clientPortForm">
+      <label class="field"><span>NAP Box</span>
+        <select name="napId" required>${boxOptions}</select>
+      </label>
+      <label class="field"><span>Available Port</span>
+        <select name="port" required></select>
+      </label>
+      <p class="small muted" id="clientPortHelp"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-act="closeModal">Cancel</button>
+        <button type="submit" class="btn primary">Save Connection</button>
+      </div>
+    </form>`;
+
+  const form = document.getElementById('clientPortForm');
+  const napSelect = form.elements.namedItem('napId');
+  const portSelect = form.elements.namedItem('port');
+  const help = document.getElementById('clientPortHelp');
+  const updatePorts = ()=>{
+    const available = getAvailablePorts(napSelect.value);
+    const currentPort = client.napId===napSelect.value ? Number(client.port) : 0;
+    portSelect.innerHTML = available.length
+      ? `<option value="">— choose available port —</option>${available.map(port=>
+        `<option value="${port}" ${port===currentPort?'selected':''}>Port ${port}${port===currentPort?' · current':''}</option>`
+      ).join('')}`
+      : '<option value="">No available ports</option>';
+    portSelect.disabled = available.length===0;
+    help.textContent = available.length
+      ? `${available.length} available port${available.length===1?'':'s'} on this box.`
+      : 'This NAP box has no available ports.';
+  };
+  napSelect.addEventListener('change', updatePorts);
+  updatePorts();
+  document.getElementById('backdrop').classList.add('open');
+
+  form.addEventListener('submit', event=>{
+    event.preventDefault();
+    const napId = napSelect.value;
+    const port = Number(portSelect.value);
+    const error = clientPortError({napId, port}, client.id);
+    if(error){ toast(error); return; }
+
+    const old = {...client};
+    client.napId = napId;
+    client.port = port;
+    syncClientPort(client, old);
+    save();
+    closeModal();
+    render();
+    toast(`Connected to ${napId} · port ${port}`);
+  });
+}
+
 /* ------------------------------ side effects ------------------------------ */
 function syncClientPort(client, old){
   if(old && (old.napId!==client.napId || String(old.port)!==String(client.port))){
@@ -2610,6 +2705,10 @@ function clientPortError(client, excludeClientId){
   if(portRecord){
     const owner = DB.clients.find(c=>c.id===portRecord.clientId);
     return `Port ${port} is already assigned${owner?` to ${owner.name}`:''}`;
+  }
+  const portStatus = DB.napPorts.find(p=>p.napId===client.napId && Number(p.port)===port);
+  if(portStatus && portStatus.clientId!==excludeClientId && portStatus.status!=='Free'){
+    return `Port ${port} is ${portStatus.status.toLowerCase()} and cannot be assigned`;
   }
   return '';
 }
@@ -2685,6 +2784,17 @@ document.addEventListener('click', e=>{
   if(!act) return;
   const a = act.dataset.act;
 
+  if(a==='connectClient'){
+    openClientPortModal(act.dataset.id);
+    return;
+  }
+  if(a==='goNaps'){
+    closeModal();
+    state.tab = 'naps';
+    state.search = '';
+    render();
+    return;
+  }
   if(a==='continueHouse'){
     const clientId = document.getElementById('houseClientPicker').value;
     const coordinates = state.pendingClientHouse;
