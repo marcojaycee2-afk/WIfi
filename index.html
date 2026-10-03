@@ -753,6 +753,7 @@ function toast(msg){
 /* ------------------------------ storage ------------------------------ */
 const DATABASE_NAME = 'isp-manager-database';
 const DATABASE_STORE = 'records';
+const PENDING_SAVE_KEY = `${KEY}-pending-save`;
 let databasePromise = null;
 let saveRevision = 0;
 let saveQueue = Promise.resolve();
@@ -791,6 +792,7 @@ function save(){
   try{
     localStorage.setItem(KEY, JSON.stringify(snapshot));
     localSaved = true;
+    localStorage.setItem(PENDING_SAVE_KEY, '1');
   }catch(error){ console.warn('Local backup could not be updated', error); }
   setSaveStatus('Saving…', 'saving');
 
@@ -812,17 +814,29 @@ function save(){
       throw new Error('Authentication required');
     }
     if(!response.ok) throw new Error(`PostgreSQL save failed (${response.status})`);
-    if(revision===saveRevision) setSaveStatus('Saved to PostgreSQL');
-  });
-  saveQueue.catch(error=>{
+    if(revision===saveRevision){
+      try{ localStorage.removeItem(PENDING_SAVE_KEY); }
+      catch(error){ console.warn('Could not clear local pending-save marker', error); }
+      setSaveStatus('Saved to PostgreSQL');
+    }
+    return true;
+  }).catch(error=>{
     console.warn('PostgreSQL save failed', error);
     if(revision===saveRevision){
       setSaveStatus(localSaved ? 'PostgreSQL unavailable · saved on this device' : 'PostgreSQL save failed', localSaved ? 'warning' : 'error');
     }
+    return localSaved;
   });
+  return saveQueue;
 }
 
 async function load(){
+  try{
+    if(localStorage.getItem(PENDING_SAVE_KEY)==='1'){
+      const raw = localStorage.getItem(KEY);
+      if(raw) return JSON.parse(raw);
+    }
+  }catch(error){ console.warn('Pending local save could not be loaded', error); }
   try{
     const response = await fetch('/api/state');
     if(response.status===401){
@@ -2733,7 +2747,7 @@ function openForm(table, id, initialValues={}){
 
   document.getElementById('backdrop').classList.add('open');
 
-  document.getElementById('modalForm').addEventListener('submit', e=>{
+  document.getElementById('modalForm').addEventListener('submit', async e=>{
     e.preventDefault();
     const fd = new FormData(e.target);
     const obj = {};
@@ -2756,6 +2770,7 @@ function openForm(table, id, initialValues={}){
     }
 
     const old = isNew ? null : {...row};
+    const previousState = JSON.parse(JSON.stringify(DB));
 
     if(table==='clients'){
       if(obj.lat!=='' || obj.lng!==''){
@@ -2795,7 +2810,13 @@ function openForm(table, id, initialValues={}){
     if(table==='clients') syncClientPort(obj, old);
     if(table==='napBoxes') ensurePorts(obj);
 
-    save(); closeModal(); render();
+    const persisted = await save();
+    if(!persisted){
+      DB = previousState;
+      toast('Could not save this record. Please check your connection and try again.');
+      return;
+    }
+    closeModal(); render();
     toast(isNew ? 'Added' : 'Updated');
 
     // offer to open receipt if new payment
