@@ -603,6 +603,7 @@ const state = {
   mapPlaceNap:false,
   mapPlaceClient:false,
   mapContextLocation:null,
+  mapContextTarget:null,
   mapFocus:null,
   pendingClientHouse:null,
   currentReceiptId:null,
@@ -1578,6 +1579,7 @@ function napMapView(){
     <div class="map-context-menu" id="mapContextMenu" role="menu" hidden>
       <button class="btn sm" type="button" data-act="placeNapBoxAtMap">＋ Add NAP Box here</button>
       <button class="btn sm" type="button" data-act="placeClientAtMap">⌂ Add Client here</button>
+      <button class="btn sm danger" type="button" data-act="deleteMapTarget" hidden>🗑 Delete</button>
     </div>
     <div class="map-help">
       <b>Map</b><br>
@@ -1596,6 +1598,28 @@ function napMapView(){
   </div>`;
 }
 
+function showMapContextMenuGlobal(point, lat, lng, target=null){
+  const menu = document.getElementById('mapContextMenu');
+  const wrap = document.getElementById('mapWrap');
+  if(!menu || !wrap) return;
+  state.mapContextLocation = {lat:Number(lat).toFixed(6), lng:Number(lng).toFixed(6)};
+  state.mapContextTarget = target;
+  const deleteAction = menu.querySelector('[data-act="deleteMapTarget"]');
+  if(deleteAction) deleteAction.hidden = !target;
+  menu.hidden = false;
+  const maxLeft = Math.max(0, wrap.clientWidth-menu.offsetWidth-8);
+  const maxTop = Math.max(0, wrap.clientHeight-menu.offsetHeight-8);
+  menu.style.left = `${Math.min(Math.max(point.x,8),maxLeft)}px`;
+  menu.style.top = `${Math.min(Math.max(point.y,8),maxTop)}px`;
+}
+
+function hideMapContextMenuGlobal(){
+  const menu = document.getElementById('mapContextMenu');
+  if(menu) menu.hidden = true;
+  state.mapContextLocation = null;
+  state.mapContextTarget = null;
+}
+
 async function initMap(){
   const el = document.getElementById('map');
   if(!el) return;
@@ -1609,22 +1633,8 @@ async function initMap(){
   const hideMapStatus = ()=>{
     if(status) status.hidden = true;
   };
-  const showMapContextMenu = (point, lat, lng)=>{
-    const menu = document.getElementById('mapContextMenu');
-    const wrap = document.getElementById('mapWrap');
-    if(!menu || !wrap) return;
-    const coords = {lat:Number(lat).toFixed(6), lng:Number(lng).toFixed(6)};
-    state.mapContextLocation = coords;
-    menu.hidden = false;
-    const maxLeft = Math.max(0, wrap.clientWidth - menu.offsetWidth - 8);
-    const maxTop = Math.max(0, wrap.clientHeight - menu.offsetHeight - 8);
-    menu.style.left = `${Math.min(Math.max(point.x, 8), maxLeft)}px`;
-    menu.style.top = `${Math.min(Math.max(point.y, 8), maxTop)}px`;
-  };
   const hideMapContextMenu = ()=>{
-    const menu = document.getElementById('mapContextMenu');
-    if(menu) menu.hidden = true;
-    state.mapContextLocation = null;
+    hideMapContextMenuGlobal();
   };
   const hb = DB.settings.homeBase;
   let mapCenter = [Number(hb.lat), Number(hb.lng)];
@@ -1673,7 +1683,11 @@ async function initMap(){
       leafletMapOverlays = L.layerGroup().addTo(mapInstance);
       mapInstance.on('contextmenu', event=>{
         event.originalEvent.preventDefault();
-        showMapContextMenu(event.containerPoint, event.latlng.lat, event.latlng.lng);
+        const marker = event.originalEvent.target.closest('.leaflet-marker-icon');
+        const mapTarget = marker?.dataset.mapTable && marker?.dataset.mapId
+          ? {table:marker.dataset.mapTable,id:marker.dataset.mapId}
+          : null;
+        showMapContextMenuGlobal(event.containerPoint, event.latlng.lat, event.latlng.lng, mapTarget);
       });
       mapInstance.on('click', hideMapContextMenu);
       const map3dButton = document.getElementById('map3dToggle');
@@ -1720,7 +1734,11 @@ async function initMap(){
     mapHoverPopup = new mapboxgl.Popup({closeButton:false, closeOnClick:false, offset:8});
     mapInstance.on('contextmenu', event=>{
       event.originalEvent.preventDefault();
-      showMapContextMenu(event.point, event.lngLat.lat, event.lngLat.lng);
+      const marker = event.originalEvent.target.closest('.mapboxgl-marker');
+      const mapTarget = marker?.dataset.mapTable && marker?.dataset.mapId
+        ? {table:marker.dataset.mapTable,id:marker.dataset.mapId}
+        : null;
+      showMapContextMenuGlobal(event.point, event.lngLat.lat, event.lngLat.lng, mapTarget);
     });
     mapInstance.on('click', hideMapContextMenu);
     mapInstance.on('load', ()=>{
@@ -1761,6 +1779,11 @@ function renderLeafletMapMarkers(){
   };
   const makeMarker = (key, element, lat, lng, popup, onDrag)=>{
     const isNapBox = element.classList.contains('napbox-map-marker');
+    const isClient = key.startsWith('client:');
+    if(isNapBox || isClient){
+      element.dataset.mapTable = isNapBox ? 'napBoxes' : 'clients';
+      element.dataset.mapId = isNapBox ? key : key.slice('client:'.length);
+    }
     const marker = L.marker([Number(lat),Number(lng)], {
       draggable:!isNapBox,
       icon:L.divIcon({
@@ -1771,6 +1794,16 @@ function renderLeafletMapMarkers(){
       })
     }).addTo(leafletMapOverlays);
     marker.bindPopup(popup);
+    if(isNapBox || isClient){
+      marker.on('contextmenu', event=>{
+        event.originalEvent.preventDefault();
+        event.originalEvent.stopPropagation();
+        showMapContextMenuGlobal(event.containerPoint, event.latlng.lat, event.latlng.lng, {
+          table:isNapBox?'napBoxes':'clients',
+          id:isNapBox?key:key.slice('client:'.length)
+        });
+      });
+    }
     if(!isNapBox) marker.on('dragend', ()=>{
       const point = marker.getLatLng();
       onDrag(point);
@@ -1963,9 +1996,17 @@ function renderMapMarkers(){
     const element = document.createElement('div');
     element.innerHTML = napBoxMarkerMarkup(box.id);
     const markerElement = element.firstElementChild;
+    markerElement.dataset.mapTable = 'napBoxes';
+    markerElement.dataset.mapId = box.id;
     const m = new mapboxgl.Marker({element:markerElement, draggable:false, anchor:'bottom'})
       .setLngLat([Number(box.lng),Number(box.lat)])
       .addTo(mapInstance);
+    markerElement.addEventListener('contextmenu', event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      const point = mapInstance.project(m.getLngLat());
+      showMapContextMenuGlobal(point, box.lat, box.lng, {table:'napBoxes',id:box.id});
+    });
     m.setPopup(new mapboxgl.Popup({offset:20}).setHTML(`
       <b>${esc(box.id)}</b><br>
       <span style="font-size:11px;color:#94a3b8">${esc(box.label||'')}</span><br>
@@ -1991,9 +2032,17 @@ function renderMapMarkers(){
     const element = document.createElement('div');
     element.className = 'client-house-marker';
     element.textContent = '⌂';
+    element.dataset.mapTable = 'clients';
+    element.dataset.mapId = client.id;
     const marker = new mapboxgl.Marker({element, draggable:true, anchor:'center'})
       .setLngLat([lng,lat])
       .addTo(mapInstance);
+    element.addEventListener('contextmenu', event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      const point = mapInstance.project(marker.getLngLat());
+      showMapContextMenuGlobal(point, lat, lng, {table:'clients',id:client.id});
+    });
     marker.on('dragend', ()=>{
       const point = marker.getLngLat();
       client.lat = point.lat;
@@ -3122,6 +3171,28 @@ function generateInvoices(month){
   render();
 }
 
+function deleteRecord(table, id){
+  if(!DB[table] || !DB[table].some(record=>String(record.id)===String(id))){
+    toast('Record not found');
+    return;
+  }
+  if(!confirm(`Delete ${id}? This cannot be undone.`)) return;
+  DB[table] = DB[table].filter(record=>String(record.id)!==String(id));
+  if(table==='clients'){
+    DB.napPorts.forEach(port=>{
+      if(port.clientId===id){ port.clientId=''; port.status='Free'; }
+    });
+  }
+  if(table==='napBoxes'){
+    DB.napPorts = DB.napPorts.filter(port=>port.napId!==id);
+    DB.clients.forEach(client=>{
+      if(client.napId===id){ client.napId=''; client.port=''; }
+    });
+    DB.napBoxes.forEach(box=>{ if(box.uplinkId===id) box.uplinkId=''; });
+  }
+  save(); render(); toast('Deleted');
+}
+
 /* =========================================================================
    EVENTS
    ========================================================================= */
@@ -3234,6 +3305,14 @@ document.addEventListener('click', e=>{
     else openClientHouseForm(coordinates.lat, coordinates.lng);
     return;
   }
+  if(a==='deleteMapTarget'){
+    const target = state.mapContextTarget;
+    hideMapContextMenuGlobal();
+    if(target && ['clients','napBoxes'].includes(target.table)){
+      deleteRecord(target.table, target.id);
+    }
+    return;
+  }
   if(a==='focusNapMap'){
     focusNapBoxOnMap(act.dataset.id);
     return;
@@ -3254,20 +3333,7 @@ document.addEventListener('click', e=>{
   if(a==='receipt'){ openReceipt(act.dataset.id); return; }
 
   if(a==='del'){
-    const t = act.dataset.table, id = act.dataset.id;
-    if(!confirm(`Delete ${id}? This cannot be undone.`)) return;
-    DB[t] = DB[t].filter(r=>String(r.id)!==String(id));
-    if(t==='clients'){
-      DB.napPorts.forEach(p=>{ if(p.clientId===id){ p.clientId=''; p.status='Free'; } });
-    }
-    if(t==='napBoxes'){
-      DB.napPorts = DB.napPorts.filter(p=>p.napId!==id);
-      DB.clients.forEach(c=>{
-        if(c.napId===id){ c.napId=''; c.port=''; }
-      });
-      DB.napBoxes.forEach(b=>{ if(b.uplinkId===id) b.uplinkId=''; });
-    }
-    save(); render(); toast('Deleted');
+    deleteRecord(act.dataset.table, act.dataset.id);
     return;
   }
 
