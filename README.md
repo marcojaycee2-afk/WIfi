@@ -18,6 +18,8 @@ The admin username defaults to `telecomadmin`; you may override it with `ADMIN_U
 
 Sign-in uses an HTTP-only, same-site session cookie that expires after 8 hours. Login attempts are rate limited per client IP. Sign out from the dashboard using the **Sign out** button. Use HTTPS when hosting publicly; production cookies are marked Secure.
 
+New clients default to ₱800/month for 25 Mbps and ₱1,000/month for 50 Mbps. The default roster contains the 68 customers transcribed from the supplied list, with continuous client IDs; no customers were invented for the two missing count numbers. Only exact ₱800 and ₱1,000 rates are assigned those speeds, while other rates remain `Unspecified` for manual assignment. The monthly rate remains editable per client, so you can enter a discounted amount; saved custom rates are preserved.
+
 The included Compose setup publishes the app only on localhost; add TLS before making it reachable by other devices or the public internet.
 
 Use a Mapbox public token beginning with `pk.`. It is delivered to the browser for map rendering, so restrict it to your app's URL in your Mapbox account. Never use a secret `sk.` token in the browser app.

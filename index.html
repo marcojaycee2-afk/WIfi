@@ -153,6 +153,7 @@ td strong{color:var(--ink)}
 
 .field{display:block;margin-bottom:11px}
 .field>span{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.field-hint{display:block;margin-top:4px;color:var(--muted);font-size:11px}
 .tag-editor{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:44px;padding:5px 7px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
 .tag-editor:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
 .tag-chip{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:4px 7px 4px 9px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface-3);color:var(--ink);font-size:12px}
@@ -583,9 +584,8 @@ const daysAgo = (a,b) => Math.floor((new Date(b) - new Date(a)) / 86400000);
 const uid = () => Math.random().toString(36).slice(2,9);
 const PLAN_LABELS = {
   '10mbps':'10 Mbps', '15mbps':'30 Mbps', '20mbps':'20 Mbps',
-  '25mbps':'50 Mbps', '30mbps':'30 Mbps', '50mbps':'50 Mbps'
+  '25mbps':'25 Mbps', '30mbps':'30 Mbps', '50mbps':'50 Mbps'
 };
-const LEGACY_PLAN_PRICES = {'15mbps':800, '25mbps':1000};
 
 function planKey(plan){
   return String(plan||'').toLowerCase().replace(/\s+/g,'');
@@ -602,13 +602,8 @@ function migratePlanPricing(){
   if(JSON.stringify(plans)!==JSON.stringify(DB.settings.plans)) changed = true;
 
   (DB.clients||[]).forEach(client=>{
-    const key = planKey(client.plan);
     const label = normalizePlanLabel(client.plan);
     if(label!==client.plan){ client.plan = label; changed = true; }
-    if(Object.hasOwn(LEGACY_PLAN_PRICES, key)){
-      client.rate = LEGACY_PLAN_PRICES[key];
-      changed = true;
-    }
   });
   (DB.installs||[]).forEach(install=>{
     const label = normalizePlanLabel(install.plan);
@@ -619,9 +614,24 @@ function migratePlanPricing(){
 
 function standardPlanRate(plan){
   const key = planKey(plan);
-  if(key==='30mbps') return 800;
+  if(key==='25mbps') return 800;
   if(key==='50mbps') return 1000;
   return null;
+}
+
+function planForRate(rate){
+  if(rate===800) return '25 Mbps';
+  if(rate===1000) return '50 Mbps';
+  return 'Unspecified';
+}
+
+function addDefaultPricingPlans(){
+  if(DB.settings.pricingDefaultsVersion===1) return false;
+  if(!DB.settings.plans.some(plan=>planKey(plan)==='25mbps')){
+    DB.settings.plans.push('25 Mbps');
+  }
+  DB.settings.pricingDefaultsVersion = 1;
+  return true;
 }
 
 function nextId(prefix, arr){
@@ -762,31 +772,81 @@ function seed(){
   const ago = n => iso(new Date(Date.now() - n*86400000));
   const y = now.getFullYear();
 
-  const pppSecrets = [
-    ['felix','15mbps'], ['jojo12345','25mbps'], ['nanes','15mbps'], ['gapo','25mbps'],
-    ['rowell','15mbps'], ['ratb','15mbps'], ['hepe','15mbps'], ['albert','15mbps'],
-    ['potpot','15mbps'], ['lizel','15mbps'], ['jelo','15mbps'], ['katt','25mbps','','Suspended'],
-    ['tomas','10mbps','pulis'], ['matt','15mbps'], ['jemar','15mbps'], ['bongbong','15mbps'],
-    ['arnel','15mbps'], ['beverly','15mbps'], ['josenew','25mbps'], ['celly2','15mbps','renzo'],
-    ['adriano','15mbps'], ['jaymark','15mbps'], ['hazelmiranda','15mbps'], ['edgar','15mbps'],
-    ['ivanpinsanmiranda','15mbps'], ['jose','20mbps'], ['marlondimla','15mbps','piel'], ['hob','15mbps'],
-    ['paulo1','15mbps'], ['rudolf','15mbps'], ['vangie','25mbps'], ['maricel','15mbps'],
-    ['bakspatubig','15mbps'], ['graceliongson','15mbps'], ['joel','15mbps'], ['reden','15mbps'],
-    ['malu','15mbps'], ['chelly','15mbps'], ['ericson','15mbps'], ['ppp','','Profile not specified'],
-    ['regine','15mbps'], ['maribel','15mbps'], ['dada','25mbps'], ['ruby','15mbps','beyanan ni jemuel'],
-    ['lontoc','15mbps','kabayo'], ['leslie','15mbps'], ['clarisa','15mbps','ilong'],
-    ['jeff','15mbps','jeff-nanaellen','Active','::/0'], ['ambet','15mbps','ambet'],
-    ['aeron','15mbps'], ['danica','15mbps','JR sa likod'], ['ivan','15mbps','ivan meranda'],
-    ['jaycee','25mbps','jaycee'], ['jennyfer','15mbps'], ['johnpaul','15mbps','johnpaul peil'],
-    ['jayson','15mbps','jaysonpatubig'], ['mirasol','15mbps'], ['jendimla','15mbps'],
-    ['cejaydimla','15mbps'], ['litoliongson','15mbps'], ['ramoncalma','15mbps'],
-    ['jennilynancheta','15mbps'],
+  const customerRoster = [
+    ['Erwel Bernardino',800,'2024-06-27'],
+    ['Roden',800,'2024-07-20'],
+    ['Malou',800,'2024-07-24'],
+    ['Joel Meneses',800,'2024-08-30'],
+    ['Erickson Meneses',800,'2024-10-27'],
+    ['Chelly',800,'2024-10-02'],
+    ['Pepay',700,'2024-11-09'],
+    ['Felix',500,'2025-04-11'],
+    ['Gapo 1',1000,'2025-07-25'],
+    ['Rat B',800,'2025-07-27'],
+    ['Ado',800,'2025-07-27'],
+    ['Nanes',800,'2025-07-11'],
+    ['A. Hope (Argeline)',800,'2025-08-17'],
+    ['Albert (Taba)',800,'2025-09-03'],
+    ['Liezel',800,'2025-09-07'],
+    ['William / Jelo',800,'2025-09-29'],
+    ['Rhia Tomas',500,'2025-10-06'],
+    ['Matt',800,'2025-10-20'],
+    ['Eiron (Florencio)',600,'2024-06-07'],
+    ['Potpot',800,'2025-11-15'],
+    ['Jemar',800,'2025-11-18'],
+    ['Bong Bong Store',700,'2025-11-20'],
+    ['Arnold Tapardo',800,'2025-11-26'],
+    ['Beverly',800,'2025-11-30'],
+    ['Jose (bumibili ng vape)',1000,'2025-12-02'],
+    ['Arcelie (nanay ni Renzo)',800,'2025-12-07'],
+    ['Adriano Edlyn',800,'2025-12-11'],
+    ['Mercy Miranda (Hazel)',600,'2025-12-17'],
+    ['Edgar Hipolito',600,'2026-01-05'],
+    ['Ian Miranda',600,'2026-01-04'],
+    ['Otan',600,'2026-01-08'],
+    ['Dimla (2)',600,'2026-01-07'],
+    ['Atuan/Line (lolo ni Kurt)',600,'2026-01-08'],
+    ['Rundle Miranda',600,'2026-02-18'],
+    ['Alexis Vangie (Woody Resort)',1000,'2026-02-04'],
+    ['Maricel Miranda',800,'2026-02-08'],
+    ['Bakla',800,'2026-02-12'],
+    ['Regine (tataboy)',800,'2026-03-13'],
+    ['Dada Miranda',1000,'2026-04-30'],
+    ['Ruby / Jimmie',800,'2026-05-05'],
+    ['Lontoc (Kabayo)',600,'2026-05-05'],
+    ['Leslie Miranda',800,'2026-05-31'],
+    ['Clarissa (Kapitan-Sarah)',800,'2026-06-06'],
+    ['Amber / Job',800,'2026-06-10'],
+    ['Danica / Jay-R',800,'2026-06-11'],
+    ['Pogi / Ivan',800,'2026-06-13'],
+    ['JC (Vangie house)',1000,'2026-06-13'],
+    ['Jennifer Sarmiento',800,'2026-06-14'],
+    ['John Paul',800,'2026-06-28'],
+    ['Jayson',800,'2026-07-18'],
+    ['Mirasol',800,'2026-07-27'],
+    ['Dimla (2)',800,'2026-07-31'],
+    ['Joro',500,'2026-07-20'],
+    ['Atuan/Line (lolo ni Kurt)',800,'2026-08-18'],
+    ['Annie',800,'2026-08-20'],
+    ['Nana Ore Manlapaz',800,'2026-08-23'],
+    ['Ramon Calma',800,'2026-08-26'],
+    ['Jennie Ancheta',800,'2026-08-21'],
+    ['Kath Apartment #7',1300,'2026-08-25'],
+    ['Noime Macaraig (Piel)',800,'2026-08-31'],
+    ['Joy / Renzo',800,'2026-09-01'],
+    ['Gideon Miranda',500,'2026-09-09'],
+    ['Edward Limson',1000,'2026-09-10'],
+    ['Anyan / Miriam Meneses',1000,'2026-09-17'],
+    ['Memeng (Kapatid)',800,'2026-09-25'],
+    ['Musong / Mikyo',1000,'2026-09-27'],
+    ['Maricel Manlapaz',1000,'2026-09-30'],
+    ['Tanya',800,'2026-10-01'],
   ];
-  const clients = pppSecrets.map(([name, plan, notes='', status='Active', remoteIpv6Prefix=''], index)=>({
-    id:`C-${String(index+1).padStart(4,'0')}`, name, pppoe:name,
-    plan:normalizePlanLabel(plan || 'Unspecified'), rate:standardPlanRate(plan) || 0,
-    status, notes, service:'pppoe', remoteIpv6Prefix,
-    barangay:'', city:'', province:'', contact:'', installed:'', napId:'', port:'', onu:'', mac:''
+  const clients = customerRoster.map(([name, rate, installed], index)=>({
+    id:`C-${String(index+1).padStart(4,'0')}`, name, pppoe:'',
+    plan:planForRate(rate), rate,
+    status:'Active', notes:'', service:'pppoe', installed, remoteIpv6Prefix:'',
+    barangay:'', city:'', province:'', contact:'', napId:'', port:'', onu:'', mac:''
   }));
 
   const napBoxes = [
@@ -862,7 +922,7 @@ function seed(){
       address:'Brgy. San Isidro, Calamba, Laguna',
       contact:'0917-000-0000 · myisp@example.com',
       tin:'',
-      plans:['10 Mbps','20 Mbps','30 Mbps','50 Mbps','Unspecified'],
+      plans:['25 Mbps','50 Mbps','Unspecified'],
       methods:['Cash','GCash','Maya','Bank Transfer'],
       dueDay:5,
       homeBase:{ name:'Home Base / OLT', lat:14.1230, lng:121.1230 },
@@ -902,7 +962,7 @@ async function init(){
     toast('Imported PPPoE subscriber list');
   }
   DB.settings = DB.settings || {};
-  DB.settings.plans = DB.settings.plans || ['10 Mbps','20 Mbps','30 Mbps','50 Mbps','Unspecified'];
+  DB.settings.plans = DB.settings.plans || ['10 Mbps','20 Mbps','25 Mbps','30 Mbps','50 Mbps','Unspecified'];
   DB.settings.methods = DB.settings.methods || ['Cash','GCash','Maya','Bank Transfer'];
   DB.settings.dueDay = DB.settings.dueDay || 5;
   DB.settings.business = DB.settings.business || 'My ISP';
@@ -912,6 +972,7 @@ async function init(){
   DB.settings.tin = DB.settings.tin || '';
   if(!DB.settings.homeBase) DB.settings.homeBase = { name:'Home Base / OLT', lat:14.1230, lng:121.1230 };
   migratePlanPricing();
+  addDefaultPricingPlans();
   (DB.clients||[]).forEach(client=>{
     if(client.pppoe && !client.service) client.service = 'pppoe';
     if(client.pppoe==='jeff' && client.notes==='jeff-nanaellen; remote-ipv6-prefix=::/0'){
@@ -2116,7 +2177,8 @@ const SCHEMAS = {
       {k:'province', l:'Province', t:'text'},
       {k:'contact', l:'Contact Number', t:'tel'},
       {k:'plan', l:'Plan / Speed', t:'select', opts:()=>DB.settings.plans||[]},
-      {k:'rate', l:'Monthly Rate (₱)', t:'number', req:true},
+      {k:'rate', l:'Monthly Rate (₱)', t:'number', req:true,
+        hint:'Defaults to the plan price. Edit this amount for a customer discount.'},
       {k:'installed', l:'Installation Date', t:'date'},
       {k:'napId', l:'NAP Box', t:'select', opts:()=>DB.napBoxes.map(b=>b.id)},
       {k:'port', l:'NAP Port No.', t:'number'},
@@ -2261,7 +2323,7 @@ function openForm(table, id, initialValues={}){
       input = `<input name="${f.k}" type="${f.t}" value="${esc(val)}"
         ${f.req?'required':''} ${f.step?`step="${f.step}"`:''}>`;
     }
-    return `<label class="field"><span>${esc(f.l)}${f.req?' *':''}</span>${input}</label>`;
+    return `<label class="field"><span>${esc(f.l)}${f.req?' *':''}</span>${input}${f.hint?`<small class="field-hint">${esc(f.hint)}</small>`:''}</label>`;
   }).join('');
 
   const modal = document.getElementById('modal');
@@ -2639,7 +2701,7 @@ document.addEventListener('click', e=>{
       settings:{
         business:'My ISP', tagline:'Fiber Internet Service Provider',
         address:'', contact:'', tin:'',
-        plans:['35 Mbps','50 Mbps','100 Mbps'],
+        plans:['35 Mbps','50 Mbps','100 Mbps'], pricingDefaultsVersion:1,
         methods:['Cash','GCash','Maya','Bank Transfer'],
         dueDay:5, homeBase:{name:'Home Base / OLT', lat:14.1230, lng:121.1230}
       }
@@ -2769,6 +2831,7 @@ document.getElementById('fileInput').addEventListener('change', e=>{
       DB.settings.business = DB.settings.business || 'My ISP';
       if(!DB.settings.homeBase) DB.settings.homeBase = {name:'Home Base / OLT', lat:14.1230, lng:121.1230};
       migratePlanPricing();
+      addDefaultPricingPlans();
       (DB.payments||[]).forEach(p=>{ if(!p.receiptNo) p.receiptNo = nextReceiptNo(); });
       save();
       document.getElementById('subBrand').textContent = DB.settings.business;
