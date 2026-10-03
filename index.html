@@ -226,6 +226,17 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 
 #mapWrap{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow)}
 #map{height:min(65vh, 560px);width:100%;z-index:0;background:#0f172a}
+.map-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.map-cross{
+  position:absolute;left:50%;top:50%;z-index:480;pointer-events:none;
+  transform:translate(-50%,-100%);font-size:36px;
+  filter:drop-shadow(0 2px 3px #000)
+}
+.map-confirm{
+  position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+  z-index:520;display:flex;gap:8px
+}
+.map-confirm[hidden],.map-cross[hidden]{display:none}
 .map-status{
   position:absolute;z-index:450;left:50%;top:50%;transform:translate(-50%,-50%);
   width:min(420px,calc(100% - 32px));padding:14px 16px;border:1px solid var(--line-2);
@@ -581,6 +592,7 @@ let mapMarkers = {};
 let mapLines = [];
 let mapLineEvents = [];
 let mapHoverPopup = null;
+let mapInitToken = 0;
 const state = {
   tab:'dashboard',
   month:null,
@@ -588,6 +600,7 @@ const state = {
   napView:'grid',
   map3d:false,
   selectedNapId:null,
+  mapPlaceNap:false,
   mapPlaceClient:false,
   mapContextLocation:null,
   mapFocus:null,
@@ -1551,16 +1564,24 @@ function napGridView(){
 
 function napMapView(){
   return `
+  <div class="map-bar">
+    <button class="btn sm" type="button" data-act="placeNapCenter">＋ Place NAP Box at map center</button>
+  </div>
   <div id="mapWrap">
     <div id="map"></div>
     <div class="map-status" id="mapStatus" role="status" aria-live="polite" hidden></div>
+    <div class="map-cross" id="mapCenterPin" aria-hidden="true" ${state.mapPlaceNap?'':'hidden'}>📍</div>
+    <div class="map-confirm" id="mapCenterConfirm" ${state.mapPlaceNap?'':'hidden'}>
+      <button class="btn primary" type="button" data-act="confirmNapCenter">✓ Place here</button>
+      <button class="btn" type="button" data-act="cancelNapCenter">Cancel</button>
+    </div>
     <div class="map-context-menu" id="mapContextMenu" role="menu" hidden>
       <button class="btn sm" type="button" data-act="placeNapBoxAtMap">＋ Add NAP Box here</button>
       <button class="btn sm" type="button" data-act="placeClientAtMap">⌂ Add Client here</button>
     </div>
     <div class="map-help">
       <b>Map</b><br>
-      Right-click to add a NAP box or client at that location. Drag home and client markers to reposition them; edit a NAP box to change its coordinates. Select a NAP box to open its splitter.
+      Use the center-pin button to place a NAP box by panning the map beneath the pin. Right-click to add at a location. NAP markers remain attached to their GPS coordinates.
       <div style="margin-top:8px"><button class="btn sm" id="map3dToggle" type="button">Enable 3D</button></div>
     </div>
     <div class="map-overlay">
@@ -1578,6 +1599,7 @@ function napMapView(){
 async function initMap(){
   const el = document.getElementById('map');
   if(!el) return;
+  const initToken = ++mapInitToken;
   const status = document.getElementById('mapStatus');
   const showMapStatus = (title, message)=>{
     if(!status) return;
@@ -1611,6 +1633,10 @@ async function initMap(){
     mapInstance.remove();
     mapInstance = null;
   }
+  mapMarkers = {};
+  mapLines = [];
+  mapLineEvents = [];
+  mapHoverPopup = null;
   if(state.mapFocus){
     mapCenter = [Number(state.mapFocus.lat), Number(state.mapFocus.lng)];
     mapZoom = 18;
@@ -1622,6 +1648,7 @@ async function initMap(){
     const response = await fetch('/api/config');
     if(!response.ok) throw new Error('Could not load map configuration');
     const {mapboxAccessToken} = await response.json();
+    if(initToken!==mapInitToken || document.getElementById('map')!==el) return;
     if(!mapboxAccessToken){
       if(typeof L==='undefined'){
         showMapStatus('Map library unavailable', 'Allow network access to unpkg.com and reload the page.');
@@ -1679,7 +1706,7 @@ async function initMap(){
     state.mapFocus = null;
     let mapLoaded = false;
     mapInstance.on('error', event=>{
-      if(mapLoaded) return;
+      if(initToken!==mapInitToken || mapLoaded || document.getElementById('map')!==el) return;
       const error = event.error || {};
       const statusCode = Number(error.status);
       if(statusCode===401 || statusCode===403){
@@ -1697,6 +1724,7 @@ async function initMap(){
     });
     mapInstance.on('click', hideMapContextMenu);
     mapInstance.on('load', ()=>{
+      if(initToken!==mapInitToken || document.getElementById('map')!==el) return;
       mapLoaded = true;
       hideMapStatus();
       try{ addMapBuildings(); }
@@ -1895,8 +1923,9 @@ function renderMapMarkers(){
     mapInstance.off('mouseleave', layerId, onLeave);
   });
   mapLines.forEach(id=>{
-    mapInstance.removeLayer(`${id}-layer`);
-    mapInstance.removeSource(id);
+    const layerId = `${id}-layer`;
+    if(mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId);
+    if(mapInstance.getSource(id)) mapInstance.removeSource(id);
   });
   mapMarkers = {}; mapLines = []; mapLineEvents = [];
 
@@ -3109,11 +3138,12 @@ document.addEventListener('click', e=>{
   }
 
   const tabBtn = e.target.closest('[data-tab]');
-  if(tabBtn){ state.mapPlaceClient=false; state.tab = tabBtn.dataset.tab; state.search=''; render(); return; }
+  if(tabBtn){ state.mapPlaceClient=false; state.mapPlaceNap=false; state.tab = tabBtn.dataset.tab; state.search=''; render(); return; }
 
   const napViewBtn = e.target.closest('[data-napview]');
   if(napViewBtn){
     state.mapPlaceClient = false;
+    state.mapPlaceNap = false;
     state.napView = napViewBtn.dataset.napview;
     render();
     return;
@@ -3161,12 +3191,45 @@ document.addEventListener('click', e=>{
     if(coordinates) openForm('clients', null, coordinates);
     return;
   }
+  if(a==='placeNapCenter'){
+    if(!mapInstance){ toast('Map is not ready yet'); return; }
+    state.mapPlaceNap = true;
+    const pin = document.getElementById('mapCenterPin');
+    const controls = document.getElementById('mapCenterConfirm');
+    if(pin) pin.hidden = false;
+    if(controls) controls.hidden = false;
+    toast('Pan the map beneath the pin, then tap Place here');
+    return;
+  }
+  if(a==='cancelNapCenter'){
+    state.mapPlaceNap = false;
+    const pin = document.getElementById('mapCenterPin');
+    const controls = document.getElementById('mapCenterConfirm');
+    if(pin) pin.hidden = true;
+    if(controls) controls.hidden = true;
+    return;
+  }
+  if(a==='confirmNapCenter'){
+    if(!mapInstance){ toast('Map is not ready yet'); return; }
+    const center = mapInstance.getCenter();
+    state.mapPlaceNap = false;
+    const pin = document.getElementById('mapCenterPin');
+    const controls = document.getElementById('mapCenterConfirm');
+    if(pin) pin.hidden = true;
+    if(controls) controls.hidden = true;
+    openForm('napBoxes', null, {
+      lat:Number(center.lat).toFixed(6),
+      lng:Number(center.lng).toFixed(6)
+    });
+    return;
+  }
   if(a==='placeNapBoxAtMap' || a==='placeClientAtMap'){
     const coordinates = state.mapContextLocation;
     const menu = document.getElementById('mapContextMenu');
     if(menu) menu.hidden = true;
     state.mapContextLocation = null;
     if(!coordinates) return;
+    state.mapPlaceNap = false;
     if(a==='placeNapBoxAtMap') openForm('napBoxes', null, coordinates);
     else openClientHouseForm(coordinates.lat, coordinates.lng);
     return;
@@ -3176,6 +3239,7 @@ document.addEventListener('click', e=>{
     return;
   }
   if(a==='addClientHouse'){
+    state.mapPlaceNap = false;
     state.mapPlaceClient = true;
     state.napView = 'map';
     render();
