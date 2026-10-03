@@ -262,16 +262,20 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
   text-decoration:underline;cursor:pointer;
 }
 .map-link:hover{background:none;color:#93c5fd}
-.name-badge-marker{
-  display:flex;align-items:center;justify-content:center;
-  color:#fff;font-weight:700;font-size:11px;
-  padding:4px 9px;border-radius:14px;border:2px solid #fff;
-  box-shadow:0 3px 8px rgba(0,0,0,.35);
-  white-space:nowrap;
-  text-shadow:0 1px 2px rgba(0,0,0,.3);
+.napbox-map-marker{
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  width:52px;min-height:58px;cursor:pointer;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.65));
   transition:transform .15s;
 }
-.name-badge-marker:hover{transform:scale(1.1)}
+.napbox-map-marker:hover{transform:scale(1.12)}
+.napbox-map-icon{display:block;width:42px;height:42px}
+.napbox-map-icon svg{display:block;width:100%;height:100%}
+.napbox-map-label{
+  max-width:100%;padding:1px 4px;border:1px solid #fff;border-radius:6px;
+  background:#1e293b;color:#fff;font-size:9px;font-weight:750;
+  line-height:1.25;text-align:center;white-space:nowrap;
+}
 .home-marker{
   width:34px;height:34px;border-radius:6px;
   background:#334155;border:2px solid #fff;
@@ -590,6 +594,36 @@ const state = {
   pendingClientHouse:null,
   currentReceiptId:null,
 };
+
+const NAPBOX_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" role="img" aria-label="NAP box">
+  <rect x="110" y="180" width="40" height="30" rx="15" fill="#3A4656"/>
+  <rect x="110" y="290" width="40" height="30" rx="15" fill="#3A4656"/>
+  <rect x="350" y="180" width="40" height="30" rx="15" fill="#3A4656"/>
+  <rect x="350" y="290" width="40" height="30" rx="15" fill="#3A4656"/>
+  <circle cx="130" cy="195" r="8" fill="#1D2430"/>
+  <circle cx="130" cy="305" r="8" fill="#1D2430"/>
+  <circle cx="370" cy="195" r="8" fill="#1D2430"/>
+  <circle cx="370" cy="305" r="8" fill="#1D2430"/>
+  <rect x="230" y="120" width="40" height="30" fill="#3A4656"/>
+  <rect x="220" y="105" width="60" height="30" rx="8" fill="#4B5B6E"/>
+  <rect x="195" y="340" width="30" height="25" fill="#3A4656"/>
+  <rect x="185" y="355" width="50" height="35" rx="8" fill="#4B5B6E"/>
+  <rect x="275" y="340" width="30" height="25" fill="#3A4656"/>
+  <rect x="265" y="355" width="50" height="35" rx="8" fill="#4B5B6E"/>
+  <rect x="150" y="150" width="200" height="200" rx="20" fill="#3A4656"/>
+  <path d="M155 330V180q0-25 25-25h140q20 0 20 20v155q0 10-10 10H165q-10 0-10-10Z" fill="#2C3645"/>
+  <rect x="210" y="175" width="80" height="20" rx="10" fill="#2C3645"/>
+</svg>`;
+
+function napBoxMarkerMarkup(id){
+  return `<div class="napbox-map-marker"><span class="napbox-map-icon">${NAPBOX_ICON_SVG}</span><span class="napbox-map-label">${esc(id)}</span></div>`;
+}
+
+function hasMapCoordinates(point){
+  if(point.lat==='' || point.lat==null || point.lng==='' || point.lng==null) return false;
+  const lat = Number(point.lat), lng = Number(point.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat>=-90 && lat<=90 && lng>=-180 && lng<=180;
+}
 
 /* ------------------------------ helpers ------------------------------ */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -999,6 +1033,24 @@ function isPreviousPppoeSeed(data){
     otherRecords.every(key=>!Array.isArray(data[key]) || data[key].length===0);
 }
 
+function isIncompleteSeedNapData(data){
+  if(!Array.isArray(data.clients) || !data.clients.length ||
+     !data.settings || data.settings.business!=='My ISP' ||
+     data.settings.address!=='Brgy. San Isidro, Calamba, Laguna') return false;
+
+  const emptySeedCollections = ['billing','payments','napBoxes','napPorts','complaints','installs','inventory']
+    .every(key=>Array.isArray(data[key]) && data[key].length===0);
+  if(!emptySeedCollections) return false;
+
+  const seedData = seed();
+  return data.clients.length===seedData.clients.length &&
+    data.clients.every((client,index)=>{
+      const expected = seedData.clients[index];
+      return client.id===expected.id && client.name===expected.name &&
+        client.rate===expected.rate;
+    });
+}
+
 /* ------------------------------ init ------------------------------ */
 async function init(){
   DB = await load();
@@ -1018,6 +1070,12 @@ async function init(){
       plans:[...new Set([...(existingSettings.plans||[]), ...newDefaults.settings.plans])]
     };
     toast('Updated the default customer list to 68 subscribers');
+  }
+  if(isIncompleteSeedNapData(DB)){
+    const seedData = seed();
+    DB.napBoxes = seedData.napBoxes;
+    DB.napPorts = seedData.napPorts;
+    toast('Restored missing NAP box demo data');
   }
   DB.settings = DB.settings || {};
   DB.settings.plans = DB.settings.plans || ['10 Mbps','20 Mbps','25 Mbps','30 Mbps','50 Mbps','Unspecified'];
@@ -1466,7 +1524,7 @@ function napMapView(){
     <div class="map-overlay">
       <b>Legend</b>
       <div class="row"><span class="home-marker" style="width:18px;height:18px;font-size:10px">🏠</span> Home Base / OLT</div>
-      <div class="row"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2px solid #fff"></span> NAP box</div>
+      <div class="row"><span class="napbox-map-icon" style="width:22px;height:22px">${NAPBOX_ICON_SVG}</span> NAP box</div>
       <div class="row"><span style="display:inline-block;width:22px;border-top:2px dashed #3b82f6"></span> Uplink</div>
       <div class="row"><span class="client-house-marker" style="width:18px;height:18px;font-size:10px">⌂</span> Client house</div>
       <div class="row"><span style="display:inline-block;width:22px;border-top:2px dashed #22c55e"></span> Client drop
@@ -1599,7 +1657,8 @@ async function initMap(){
     mapInstance.on('load', ()=>{
       mapLoaded = true;
       hideMapStatus();
-      addMapBuildings();
+      try{ addMapBuildings(); }
+      catch(error){ console.warn('3D buildings layer could not be added', error); }
       renderMapMarkers();
       setMap3dMode(state.map3d, false);
       if(state.mapPlaceClient){
@@ -1631,9 +1690,15 @@ function renderLeafletMapMarkers(){
     }).bindTooltip(esc(tooltip)).addTo(leafletMapOverlays);
   };
   const makeMarker = (key, element, lat, lng, popup, onDrag)=>{
+    const isNapBox = element.classList.contains('napbox-map-marker');
     const marker = L.marker([Number(lat),Number(lng)], {
       draggable:true,
-      icon:L.divIcon({className:'', html:element.outerHTML, iconSize:null, iconAnchor:[16,16]})
+      icon:L.divIcon({
+        className:'',
+        html:element.outerHTML,
+        iconSize:isNapBox ? [52,60] : null,
+        iconAnchor:isNapBox ? [26,58] : [16,16]
+      })
     }).addTo(leafletMapOverlays);
     marker.bindPopup(popup);
     marker.on('dragend', ()=>{
@@ -1657,7 +1722,7 @@ function renderLeafletMapMarkers(){
   );
 
   DB.napBoxes.forEach(box=>{
-    if(box.lat==='' || box.lng==='' || !Number.isFinite(Number(box.lat)) || !Number.isFinite(Number(box.lng))) return;
+    if(!hasMapCoordinates(box)) return;
     let sourceLat = hb.lat, sourceLng = hb.lng, uplinkName = hb.name;
     if(box.uplinkId){
       const parent = DB.napBoxes.find(item=>item.id===box.uplinkId);
@@ -1670,9 +1735,8 @@ function renderLeafletMapMarkers(){
       box.color || '#3b82f6', Boolean(box.uplinkId), distance);
 
     const element = document.createElement('div');
-    element.className = 'name-badge-marker';
-    element.style.background = box.color || '#3b82f6';
-    element.textContent = box.id;
+    element.innerHTML = napBoxMarkerMarkup(box.id);
+    const napMarker = element.firstElementChild;
     const popup = `
       <b>${esc(box.id)}</b><br>
       <span style="font-size:11px;color:#94a3b8">${esc(box.label||'')}</span><br>
@@ -1681,7 +1745,7 @@ function renderLeafletMapMarkers(){
         style="background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
         Open Splitter
       </button>`;
-    makeMarker(box.id, element, box.lat, box.lng, popup, point=>{
+    makeMarker(box.id, napMarker, box.lat, box.lng, popup, point=>{
       const current = DB.napBoxes.find(item=>item.id===box.id);
       if(current){ current.lat = point.lat; current.lng = point.lng; save(); renderLeafletMapMarkers(); }
     });
@@ -1811,7 +1875,7 @@ function renderMapMarkers(){
   mapMarkers['home'] = homeMarker;
 
   DB.napBoxes.forEach(box=>{
-    if(box.lat==='' || box.lng==='' || !Number.isFinite(Number(box.lat)) || !Number.isFinite(Number(box.lng))) return;
+    if(!hasMapCoordinates(box)) return;
     let sLat = hb.lat, sLng = hb.lng;
     let uplinkName = hb.name;
     if(box.uplinkId){
@@ -1819,13 +1883,16 @@ function renderMapMarkers(){
       if(p && p.lat && p.lng){ sLat = p.lat; sLng = p.lng; uplinkName = p.name; }
     }
     const dist = getDistanceStr(sLat, sLng, box.lat, box.lng);
-    addMapLine([[Number(sLng),Number(sLat)],[Number(box.lng),Number(box.lat)]], box.color || '#3b82f6', Boolean(box.uplinkId), dist);
+    try{
+      addMapLine([[Number(sLng),Number(sLat)],[Number(box.lng),Number(box.lat)]], box.color || '#3b82f6', Boolean(box.uplinkId), dist);
+    }catch(error){
+      console.warn(`Could not draw uplink for NAP box ${box.id}`, error);
+    }
 
     const element = document.createElement('div');
-    element.className = 'name-badge-marker';
-    element.style.background = box.color || '#3b82f6';
-    element.textContent = box.id;
-    const m = new mapboxgl.Marker({element, draggable:true, anchor:'center'})
+    element.innerHTML = napBoxMarkerMarkup(box.id);
+    const markerElement = element.firstElementChild;
+    const m = new mapboxgl.Marker({element:markerElement, draggable:true, anchor:'bottom'})
       .setLngLat([Number(box.lng),Number(box.lat)])
       .addTo(mapInstance);
     m.on('dragend', ()=>{
