@@ -1498,7 +1498,15 @@ async function initMap(){
     state.mapContextLocation = null;
   };
   const hb = DB.settings.homeBase;
-  if(mapInstance){ mapInstance.remove(); mapInstance = null; }
+  let mapCenter = [Number(hb.lat), Number(hb.lng)];
+  let mapZoom = 15;
+  if(mapInstance){
+    const center = mapInstance.getCenter();
+    mapCenter = [center.lat, center.lng];
+    mapZoom = mapInstance.getZoom();
+    mapInstance.remove();
+    mapInstance = null;
+  }
   mapEngine = null;
   leafletMapOverlays = null;
   showMapStatus('Loading map…', 'Connecting to the map service.');
@@ -1512,7 +1520,7 @@ async function initMap(){
         return;
       }
       mapEngine = 'leaflet';
-      mapInstance = L.map(el, {zoomControl:false}).setView([Number(hb.lat), Number(hb.lng)], 15);
+      mapInstance = L.map(el, {zoomControl:false}).setView(mapCenter, mapZoom);
       const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom:19,
         attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -1554,8 +1562,8 @@ async function initMap(){
     mapInstance = new mapboxgl.Map({
       container:el,
       style:'mapbox://styles/mapbox/streets-v12',
-      center:[Number(hb.lng), Number(hb.lat)],
-      zoom:15,
+      center:[mapCenter[1], mapCenter[0]],
+      zoom:mapZoom,
       pitch:state.map3d ? 55 : 0,
       antialias:true
     });
@@ -2940,7 +2948,6 @@ document.addEventListener('click', e=>{
   if(napViewBtn){
     state.mapPlaceClient = false;
     state.napView = napViewBtn.dataset.napview;
-    if(state.napView==='map'){ setTimeout(initMap, 60); }
     render();
     return;
   }
