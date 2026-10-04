@@ -213,6 +213,22 @@ select option{background:var(--surface-2);color:var(--ink)}
 .spacer{flex:1}
 hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 .note{background:var(--surface-2);border-left:3px solid var(--accent);padding:10px 12px;border-radius:8px;font-size:12px;color:var(--muted)}
+.splitter-choice-group{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 11px;padding:0;border:0}
+.splitter-choice{
+  position:relative;display:flex;align-items:center;justify-content:center;gap:8px;
+  min-height:44px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface-2);color:var(--ink-2);font-weight:650;cursor:pointer;
+}
+.splitter-choice:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:#fff;box-shadow:0 0 0 1px var(--accent)}
+.splitter-choice input{
+  appearance:none;width:16px;height:16px;flex:0 0 16px;margin:0;
+  display:grid;place-content:center;border:1px solid var(--muted);border-radius:4px;
+  background:var(--bg-2);
+}
+.splitter-choice input:checked{border-color:var(--accent);background:var(--accent)}
+.splitter-choice input:checked:after{content:"✓";color:#fff;font-size:12px;font-weight:800;line-height:1}
+.splitter-choice input:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
+@media(max-width:520px){.splitter-choice-group{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .subtabs{
   display:inline-flex;gap:4px;background:var(--surface-3);border-radius:12px;padding:4px;margin-bottom:12px;
@@ -680,6 +696,18 @@ function parseCoordinates(value){
   if(!Number.isFinite(lat) || !Number.isFinite(lng) ||
      lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
   return {lat:lat.toFixed(6), lng:lng.toFixed(6)};
+}
+
+function normalizeSplitterChoice(value, totalPorts){
+  const legacyChoices = {'1:8':'8','1:16':'16','2:8':'2:16'};
+  const choice = legacyChoices[String(value)] || String(value||'');
+  if(['8','16','2:16','2:32'].includes(choice)) return choice;
+  return Number(totalPorts)>=64 ? '2:32' : Number(totalPorts)>=32 ? '2:16' :
+    Number(totalPorts)>=16 ? '16' : '8';
+}
+
+function splitterPortCount(choice){
+  return ({'8':8,'16':16,'2:16':32,'2:32':64})[choice] || 0;
 }
 
 /* ------------------------------ helpers ------------------------------ */
@@ -2289,11 +2317,14 @@ function napSplitterView(){
       </div>`;
   };
   const portCells = s.ports.map(renderPortCell).join('');
-  const portLayout = box.splitter==='2:8'
+  const splitRatio = normalizeSplitterChoice(box.splitter, box.totalPorts);
+  const splitMatch = splitRatio.match(/^2:(\d+)$/);
+  const portsPerBank = splitMatch ? Number(splitMatch[1]) : 0;
+  const portLayout = splitMatch
     ? [0,1].map(index=>`
       <div class="splitter-port-bank">
-        <div class="splitter-port-bank-label">Splitter ${index+1} · 1:8</div>
-        <div class="splitter-ports">${s.ports.slice(index*8,(index+1)*8).map(renderPortCell).join('')}</div>
+        <div class="splitter-port-bank-label">Splitter ${index+1} · 1:${portsPerBank}</div>
+        <div class="splitter-ports">${s.ports.slice(index*portsPerBank,(index+1)*portsPerBank).map(renderPortCell).join('')}</div>
       </div>`).join('')
     : `<div class="splitter-ports">${portCells}</div>`;
 
@@ -2835,7 +2866,7 @@ const SCHEMAS = {
       {k:'uplinkId', l:'Uplink (NAP Box)', t:'select', opts:()=>DB.napBoxes.map(b=>b.id)},
       {k:'upstream', l:'Upstream Type', t:'select', opts:()=>['Splitter','OLT','Main Line','Other'], def:()=>'Splitter'},
       {k:'upstreamId', l:'Upstream Device / ID', t:'text'},
-      {k:'splitter', l:'Total Ports', t:'select', req:true, opts:()=>['1:16','1:8','2:8'], def:()=>'1:8'},
+      {k:'splitter', l:'Total Ports', t:'select', req:true, opts:()=>['8','16','2:16','2:32'], def:()=>'8'},
       {k:'route', l:'Fiber Route / Cable Notes', t:'textarea'},
       {k:'installed', l:'Installation Date', t:'date'},
       {k:'lastMaint', l:'Last Maintenance Date', t:'date'},
@@ -2911,8 +2942,17 @@ function openForm(table, id, initialValues={}){
     let input;
     if(f.t==='select'){
       const opts = f.opts ? f.opts() : [];
-      if(table==='napBoxes' && f.k==='splitter' && !opts.includes(String(val))){
-        val = Number(data.totalPorts)>=16 ? '1:16' : '1:8';
+      if(table==='napBoxes' && f.k==='splitter'){
+        val = normalizeSplitterChoice(val, data.totalPorts);
+        return `<fieldset class="field">
+          <legend style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">${esc(f.l)}${f.req?' *':''}</legend>
+          <div class="splitter-choice-group" role="radiogroup" aria-label="Total ports">
+            ${opts.map((option,index)=>`<label class="splitter-choice">
+              <input type="radio" name="${f.k}" value="${esc(option)}" ${String(val)===String(option)?'checked':''} ${f.req&&index===0?'required':''}>
+              <span>${esc(option)}</span>
+            </label>`).join('')}
+          </div>
+        </fieldset>`;
       }
       if(f.k==='plan'){
         const customPlanValue = '__custom_plan__';
@@ -2982,7 +3022,8 @@ function openForm(table, id, initialValues={}){
     });
 
     if(table==='napBoxes'){
-      obj.totalPorts = obj.splitter==='1:8' ? 8 : 16;
+      obj.splitter = normalizeSplitterChoice(obj.splitter, obj.totalPorts);
+      obj.totalPorts = splitterPortCount(obj.splitter);
     }
 
     if(schema.fields.some(f=>f.k==='plan')){
