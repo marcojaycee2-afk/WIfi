@@ -2154,6 +2154,12 @@ function napSplitterView(){
     </div>`;
 
   const cols = box.totalPorts<=8 ? 4 : box.totalPorts<=16 ? 8 : 12;
+  const addedSplitters = Array.isArray(box.additionalSplitters)
+    ? box.additionalSplitters.filter(ports=>ports===8 || ports===16)
+    : [];
+  const splitterSummary = addedSplitters.length
+    ? `Additional splitters: ${addedSplitters.map(ports=>`${ports}-port`).join(' · ')}`
+    : 'No additional splitters';
 
   const ports = s.ports.map(p=>{
     const c = DB.clients.find(x=>x.id===p.clientId);
@@ -2190,6 +2196,17 @@ function napSplitterView(){
       📍 ${esc(box.address||'')}${box.landmark?` · ${esc(box.landmark)}`:''}
       ${hasCoordinates?` · <button class="map-link" type="button" data-act="focusNapMap" data-id="${esc(box.id)}">map</button>`:''}
     </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h2>Add splitter to this NAP box</h2>
+      <span class="small muted">${esc(splitterSummary)} · ${s.total} total ports</span>
+    </div>
+    <div class="flex">
+      <button class="btn" type="button" data-act="addNapSplitter" data-ports="8">＋ Add 8-port splitter</button>
+      <button class="btn" type="button" data-act="addNapSplitter" data-ports="16">＋ Add 16-port splitter</button>
+    </div>
+    <p class="small muted" style="margin:8px 0 0">New ports are added after the existing ports; current port assignments stay the same.</p>
   </div>
   <div class="splitter-wrap">
     <div class="splitter">
@@ -3175,6 +3192,32 @@ function ensurePorts(box){
   DB.napPorts = DB.napPorts.filter(p=>p.napId!==box.id || Number(p.port)<=num(box.totalPorts));
 }
 
+async function addNapSplitter(ports){
+  const box = DB.napBoxes.find(item=>item.id===state.selectedNapId);
+  if(!box){ toast('Select a NAP box first'); return; }
+  if(ports!==8 && ports!==16){ toast('Choose an 8-port or 16-port splitter'); return; }
+  const currentPorts = Number(box.totalPorts);
+  if(!Number.isSafeInteger(currentPorts) || currentPorts<0 ||
+     !Number.isSafeInteger(currentPorts+ports)){
+    toast('This NAP box has an invalid port count');
+    return;
+  }
+
+  const previousState = JSON.parse(JSON.stringify(DB));
+  box.additionalSplitters = Array.isArray(box.additionalSplitters) ? box.additionalSplitters : [];
+  box.additionalSplitters.push(ports);
+  box.totalPorts = currentPorts+ports;
+  ensurePorts(box);
+
+  if(!await save()){
+    DB = previousState;
+    toast('Could not save the splitter. Please try again.');
+    return;
+  }
+  render();
+  toast(`Added ${ports}-port splitter to ${box.id}`);
+}
+
 function generateInvoices(month){
   const dueDay = pad(DB.settings.dueDay||5);
   let added = 0;
@@ -3259,6 +3302,10 @@ document.addEventListener('click', e=>{
   if(!act) return;
   const a = act.dataset.act;
 
+  if(a==='addNapSplitter'){
+    addNapSplitter(Number(act.dataset.ports));
+    return;
+  }
   if(a==='connectClient'){
     openClientPortModal(act.dataset.id);
     return;
