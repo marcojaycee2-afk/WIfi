@@ -227,6 +227,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 #mapWrap{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow)}
 #map{height:min(65vh, 560px);width:100%;z-index:0;background:#0f172a}
 .map-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.map-bar #mapSearchInput{flex:1 1 260px;min-width:min(100%,220px);width:auto}
 .map-cross{
   position:absolute;left:50%;top:50%;z-index:480;pointer-events:none;
   transform:translate(-50%,-100%);font-size:36px;
@@ -587,6 +588,7 @@ const TABS = [
 let DB = null;
 let mapInstance = null;
 let mapEngine = null;
+let mapboxAccessToken = null;
 let leafletMapOverlays = null;
 let mapMarkers = {};
 let mapLines = [];
@@ -1576,10 +1578,16 @@ function napGridView(){
 function napMapView(){
   return `
   <div class="map-bar">
+    <input id="mapSearchInput" type="search" autocomplete="off"
+      aria-label="Search map" placeholder="Search a place, client, NAP box, or coordinates">
+    <button class="btn sm primary" type="button" data-act="searchMap">⌕ Search map</button>
+  </div>
+  <div class="map-bar">
     <button class="btn sm" type="button" data-act="placeNapCenter">＋ Place NAP Box at map center</button>
     <input id="napCoordinatesInput" type="text" inputmode="decimal" autocomplete="off"
       aria-label="Paste NAP box coordinates" placeholder="Paste coordinates: 14.998828, 120.891659"
       style="width:min(310px,100%)">
+    <button class="btn sm" type="button" data-act="pasteNapCoordinates">📋 Paste</button>
     <button class="btn sm" type="button" data-act="placeNapCoordinates">＋ Use pasted location</button>
   </div>
   <div id="mapWrap">
@@ -1667,12 +1675,14 @@ async function initMap(){
     mapViewport = null;
   }
   mapEngine = null;
+  mapboxAccessToken = null;
   leafletMapOverlays = null;
   showMapStatus('Loading map…', 'Connecting to the map service.');
   try{
     const response = await fetch('/api/config');
     if(!response.ok) throw new Error('Could not load map configuration');
-    const {mapboxAccessToken} = await response.json();
+    const config = await response.json();
+    mapboxAccessToken = config.mapboxAccessToken || null;
     if(initToken!==mapInitToken || document.getElementById('map')!==el) return;
     if(!mapboxAccessToken){
       if(typeof L==='undefined'){
@@ -2142,6 +2152,83 @@ function focusNapBoxOnMap(id){
   state.napView = 'map';
   state.mapFocus = {lat:Number(box.lat), lng:Number(box.lng)};
   render();
+}
+
+function moveMapToCoordinates(lat, lng, zoom=18){
+  if(!mapInstance) return false;
+  if(mapEngine==='leaflet') mapInstance.flyTo([lat,lng], zoom);
+  else if(mapEngine==='mapbox') mapInstance.flyTo({center:[lng,lat], zoom});
+  else return false;
+  return true;
+}
+
+async function searchMapLocation(){
+  const input = document.getElementById('mapSearchInput');
+  const query = input?.value.trim();
+  if(!query){ toast('Enter a place, client, NAP box, or coordinates to search'); return; }
+  if(!mapInstance){ toast('Map is not ready yet'); return; }
+
+  const coordinates = parseCoordinates(query);
+  if(coordinates){
+    moveMapToCoordinates(Number(coordinates.lat), Number(coordinates.lng));
+    return;
+  }
+
+  const normalizedQuery = query.toLowerCase();
+  const matches = [
+    ...DB.clients.map(client=>({
+      record:client,
+      table:'clients',
+      label:`${client.name||''} ${client.id||''} ${client.pppoe||''} ${client.address||''}`
+    })),
+    ...DB.napBoxes.map(box=>({
+      record:box,
+      table:'napBoxes',
+      label:`${box.label||''} ${box.id||''} ${box.address||''}`
+    })),
+    {
+      record:DB.settings.homeBase,
+      table:'homeBase',
+      label:`${DB.settings.homeBase.name||''} Home Base OLT`
+    }
+  ].filter(item=>item.label.toLowerCase().includes(normalizedQuery));
+
+  if(matches.length===1){
+    const match = matches[0].record;
+    if(!hasMapCoordinates(match)){
+      toast('That record does not have valid map coordinates');
+      return;
+    }
+    moveMapToCoordinates(Number(match.lat), Number(match.lng));
+    return;
+  }
+  if(matches.length>1){
+    toast('More than one map record matches. Refine your search.');
+    return;
+  }
+  if(!mapboxAccessToken){
+    toast('Place search needs Mapbox configuration. Try coordinates or a saved record instead.');
+    return;
+  }
+
+  try{
+    const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`);
+    url.searchParams.set('limit','1');
+    url.searchParams.set('access_token',mapboxAccessToken);
+    const response = await fetch(url);
+    if(!response.ok) throw new Error(`Place search failed (${response.status})`);
+    const result = await response.json();
+    const center = result.features?.[0]?.center;
+    if(!Array.isArray(center) || center.length<2 ||
+       !Number.isFinite(Number(center[0])) || !Number.isFinite(Number(center[1]))){
+      toast('No matching place found');
+      return;
+    }
+    moveMapToCoordinates(Number(center[1]), Number(center[0]));
+  }catch(error){
+    console.error('Map place search failed', error);
+    toast('Could not search places. Check your connection and try again.');
+  }
 }
 
 function napSplitterView(){
@@ -3271,7 +3358,7 @@ function deleteRecord(table, id){
 /* =========================================================================
    EVENTS
    ========================================================================= */
-document.addEventListener('click', e=>{
+document.addEventListener('click', async e=>{
   const removeTag = e.target.closest('[data-tag-remove]');
   if(removeTag){ removeTag.closest('[data-tag-value]').remove(); return; }
 
@@ -3349,6 +3436,33 @@ document.addEventListener('click', e=>{
     if(pin) pin.hidden = false;
     if(controls) controls.hidden = false;
     toast('Pan the map beneath the pin, then tap Place here');
+    return;
+  }
+  if(a==='searchMap'){
+    searchMapLocation();
+    return;
+  }
+  if(a==='pasteNapCoordinates'){
+    const input = document.getElementById('napCoordinatesInput');
+    if(!navigator.clipboard?.readText){
+      input?.focus();
+      toast('Clipboard access unavailable. Paste coordinates into the field manually.');
+      return;
+    }
+    try{
+      const text = await navigator.clipboard.readText();
+      if(!text.trim()){
+        toast('Clipboard is empty');
+        return;
+      }
+      input.value = text.trim();
+      input.focus();
+      toast('Coordinates pasted. Tap “Use pasted location” to continue.');
+    }catch(error){
+      console.error('Could not read coordinates from clipboard', error);
+      input?.focus();
+      toast('Could not read clipboard. Paste coordinates into the field manually.');
+    }
     return;
   }
   if(a==='placeNapCoordinates'){
@@ -3516,6 +3630,11 @@ document.getElementById('receiptBackdrop').addEventListener('click', e=>{
   if(e.target.id==='receiptBackdrop') closeReceipt();
 });
 document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.id==='mapSearchInput'){
+    e.preventDefault();
+    searchMapLocation();
+    return;
+  }
   if(e.key==='Enter' && e.target.matches('[data-tag-input]')){
     e.preventDefault();
     addEditorTag(e.target);
