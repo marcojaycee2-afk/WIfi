@@ -1667,9 +1667,9 @@ async function initMap(){
       mapEngine = 'leaflet';
       mapInstance = L.map(el, {zoomControl:false}).setView(mapCenter, mapZoom);
       state.mapFocus = null;
-      const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         maxZoom:19,
-        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
       }).addTo(mapInstance);
       let tilesLoaded = false;
       tiles.on('tileload', ()=>{
@@ -1677,7 +1677,7 @@ async function initMap(){
         hideMapStatus();
       });
       tiles.on('tileerror', ()=>{
-        if(!tilesLoaded) showMapStatus('Map tiles unavailable', 'Check your internet connection and allow tile.openstreetmap.org.');
+        if(!tilesLoaded) showMapStatus('Map tiles unavailable', 'Check your internet connection and allow basemaps.cartocdn.com.');
       });
       L.control.zoom({position:'topright'}).addTo(mapInstance);
       leafletMapOverlays = L.layerGroup().addTo(mapInstance);
@@ -1699,7 +1699,7 @@ async function initMap(){
           openClientHouseForm(event.latlng.lat, event.latlng.lng);
         });
       }
-      if(!tilesLoaded) showMapStatus('Loading map…', 'Loading OpenStreetMap tiles.');
+      if(!tilesLoaded) showMapStatus('Loading map…', 'Loading dark map tiles.');
       mapInstance.invalidateSize();
       return;
     }
@@ -1711,7 +1711,7 @@ async function initMap(){
     mapboxgl.accessToken = mapboxAccessToken;
     mapInstance = new mapboxgl.Map({
       container:el,
-      style:'mapbox://styles/mapbox/streets-v12',
+      style:'mapbox://styles/mapbox/dark-v11',
       center:[mapCenter[1], mapCenter[0]],
       zoom:mapZoom,
       pitch:state.map3d ? 55 : 0,
