@@ -651,6 +651,15 @@ function getDistanceStr(lat1, lng1, lat2, lng2){
     : `${Math.round(distanceMeters)} m`;
 }
 
+function parseCoordinates(value){
+  const match = String(value||'').trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+  if(!match) return null;
+  const lat = Number(match[1]), lng = Number(match[2]);
+  if(!Number.isFinite(lat) || !Number.isFinite(lng) ||
+     lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return {lat:lat.toFixed(6), lng:lng.toFixed(6)};
+}
+
 /* ------------------------------ helpers ------------------------------ */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1567,6 +1576,10 @@ function napMapView(){
   return `
   <div class="map-bar">
     <button class="btn sm" type="button" data-act="placeNapCenter">＋ Place NAP Box at map center</button>
+    <input id="napCoordinatesInput" type="text" inputmode="decimal" autocomplete="off"
+      aria-label="Paste NAP box coordinates" placeholder="Paste coordinates: 14.998828, 120.891659"
+      style="width:min(310px,100%)">
+    <button class="btn sm" type="button" data-act="placeNapCoordinates">＋ Use pasted location</button>
   </div>
   <div id="mapWrap">
     <div id="map"></div>
@@ -3278,6 +3291,16 @@ document.addEventListener('click', e=>{
     if(pin) pin.hidden = false;
     if(controls) controls.hidden = false;
     toast('Pan the map beneath the pin, then tap Place here');
+    return;
+  }
+  if(a==='placeNapCoordinates'){
+    const coordinates = parseCoordinates(document.getElementById('napCoordinatesInput')?.value);
+    if(!coordinates){
+      toast('Paste valid latitude, longitude coordinates (for example: 14.998828, 120.891659)');
+      return;
+    }
+    state.mapPlaceNap = false;
+    openForm('napBoxes', null, coordinates);
     return;
   }
   if(a==='cancelNapCenter'){
