@@ -314,7 +314,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 .splitter{
   background:linear-gradient(180deg,#26324a,#1a2438);
   border-radius:12px;
-  padding:42px 30px 52px;
+  padding:42px 30px 18px;
   position:relative;
   box-shadow:
     0 20px 50px rgba(0,0,0,.5),
@@ -346,8 +346,26 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 }
 .splitter-ports{
   display:grid;
+  grid-template-columns:repeat(8,minmax(0,1fr));
   gap:6px;
   padding:14px 8px 0;
+}
+.splitter-port-bank{display:grid;gap:4px}
+.splitter-port-bank-label{
+  padding:3px 8px;border-radius:5px;background:#dce5ed;color:#344256;
+  font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+}
+.splitter-tray{
+  min-height:210px;margin:14px 8px 18px;position:relative;
+  border:1px solid #0b0f16;border-radius:6px 6px 12px 12px;
+  background:linear-gradient(180deg,#111923 0%,#080b10 100%);
+  box-shadow:inset 0 4px 8px rgba(0,0,0,.75),inset 0 1px 0 rgba(255,255,255,.06);
+}
+.splitter-tray:after{
+  content:"";position:absolute;bottom:14px;left:22%;right:22%;height:30px;
+  border:1px solid #080b10;border-radius:4px;
+  background:linear-gradient(180deg,#1b2430,#111720);
+  box-shadow:0 3px 5px rgba(0,0,0,.5);
 }
 .port-cell{
   position:relative;
@@ -391,20 +409,21 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 .port-cell.connected .tick.paid{background:#14532d;color:#86efac}
 .port-cell.connected .tick.unpaid{background:#7f1d1d;color:#fca5a5}
 .splitter-foot{
-  position:absolute;bottom:14px;left:44px;right:44px;
   display:flex;justify-content:space-between;align-items:center;
+  gap:10px;flex-wrap:wrap;padding:0 14px 4px;
   font-size:10px;color:var(--muted);font-weight:600;
 }
 .splitter-foot .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
 
 @media(max-width:640px){
-  .splitter{padding:36px 14px 46px}
+  .splitter{padding:36px 14px 16px}
   .port-cell{height:64px}
   .port-cell .connector{width:36px;height:30px;top:8px}
   .port-cell .body{width:38px;height:40px}
   .splitter-label{left:32px;font-size:9px}
   .splitter-id{right:32px;font-size:10px}
-  .splitter-foot{left:32px;right:32px}
+  .splitter-tray{min-height:160px}
+  .splitter-foot{padding-left:8px;padding-right:8px}
 }
 
 /* =====================================================
@@ -2251,15 +2270,7 @@ function napSplitterView(){
       </label>
     </div>`;
 
-  const cols = box.totalPorts<=8 ? 4 : box.totalPorts<=16 ? 8 : 12;
-  const addedSplitters = Array.isArray(box.additionalSplitters)
-    ? box.additionalSplitters.filter(ports=>ports===8 || ports===16)
-    : [];
-  const splitterSummary = addedSplitters.length
-    ? `Additional splitters: ${addedSplitters.map(ports=>`${ports}-port`).join(' · ')}`
-    : 'No additional splitters';
-
-  const ports = s.ports.map(p=>{
+  const renderPortCell = p=>{
     const c = DB.clients.find(x=>x.id===p.clientId);
     const status = p.status==='Used' ? (c && c.status==='Suspended' ? 'warning' : 'connected')
       : p.status==='Faulty' ? 'broken'
@@ -2276,7 +2287,15 @@ function napSplitterView(){
         <div class="body"></div>
         ${tick}
       </div>`;
-  }).join('');
+  };
+  const portCells = s.ports.map(renderPortCell).join('');
+  const portLayout = box.splitter==='2:8'
+    ? [0,1].map(index=>`
+      <div class="splitter-port-bank">
+        <div class="splitter-port-bank-label">Splitter ${index+1} · 1:8</div>
+        <div class="splitter-ports">${s.ports.slice(index*8,(index+1)*8).map(renderPortCell).join('')}</div>
+      </div>`).join('')
+    : `<div class="splitter-ports">${portCells}</div>`;
 
   const hasCoordinates = box.lat!=='' && box.lat!=null && box.lng!=='' && box.lng!=null &&
     Number.isFinite(Number(box.lat)) && Number.isFinite(Number(box.lng));
@@ -2295,28 +2314,16 @@ function napSplitterView(){
       ${hasCoordinates?` · <button class="map-link" type="button" data-act="focusNapMap" data-id="${esc(box.id)}">map</button>`:''}
     </div>
   </div>
-  <div class="card">
-    <div class="card-head">
-      <h2>Add splitter to this NAP box</h2>
-      <span class="small muted">${esc(splitterSummary)} · ${s.total} total ports</span>
-    </div>
-    <div class="flex">
-      <button class="btn" type="button" data-act="addNapSplitter" data-ports="8">＋ Add 8-port splitter</button>
-      <button class="btn" type="button" data-act="addNapSplitter" data-ports="16">＋ Add 16-port splitter</button>
-    </div>
-    <p class="small muted" style="margin:8px 0 0">New ports are added after the existing ports; current port assignments stay the same.</p>
-  </div>
   <div class="splitter-wrap">
     <div class="splitter">
       <div class="hole left1"></div>
       <div class="hole left2"></div>
       <div class="hole right1"></div>
       <div class="hole right2"></div>
-      <div class="splitter-label">FIBER PORTS · ${box.splitter||''}</div>
+      <div class="splitter-label">FIBER PORTS · ${esc(box.splitter||'')}</div>
       <div class="splitter-id">${esc(box.id)}</div>
-      <div class="splitter-ports" style="grid-template-columns:repeat(${cols}, 1fr)">
-        ${ports}
-      </div>
+      ${portLayout}
+      <div class="splitter-tray" aria-label="Empty enclosure space below the splitter"></div>
       <div class="splitter-foot">
         <span><span class="dot" style="background:#168bff"></span>Available</span>
         <span><span class="dot" style="background:#22c55e"></span>Connected</span>
@@ -2825,11 +2832,10 @@ const SCHEMAS = {
       {k:'landmark', l:'Landmark', t:'text'},
       {k:'lat', l:'GPS Latitude', t:'number', step:'any'},
       {k:'lng', l:'GPS Longitude', t:'number', step:'any'},
-      {k:'totalPorts', l:'Total Ports', t:'number', req:true, def:()=>8},
       {k:'uplinkId', l:'Uplink (NAP Box)', t:'select', opts:()=>DB.napBoxes.map(b=>b.id)},
       {k:'upstream', l:'Upstream Type', t:'select', opts:()=>['Splitter','OLT','Main Line','Other'], def:()=>'Splitter'},
       {k:'upstreamId', l:'Upstream Device / ID', t:'text'},
-      {k:'splitter', l:'Splitter Ratio', t:'select', opts:()=>['1:2','1:4','1:8','1:16','1:32','1:64']},
+      {k:'splitter', l:'Total Ports', t:'select', req:true, opts:()=>['1:16','1:8','2:8'], def:()=>'1:8'},
       {k:'route', l:'Fiber Route / Cable Notes', t:'textarea'},
       {k:'installed', l:'Installation Date', t:'date'},
       {k:'lastMaint', l:'Last Maintenance Date', t:'date'},
@@ -2905,6 +2911,9 @@ function openForm(table, id, initialValues={}){
     let input;
     if(f.t==='select'){
       const opts = f.opts ? f.opts() : [];
+      if(table==='napBoxes' && f.k==='splitter' && !opts.includes(String(val))){
+        val = Number(data.totalPorts)>=16 ? '1:16' : '1:8';
+      }
       if(f.k==='plan'){
         const customPlanValue = '__custom_plan__';
         const planOptions = opts.filter(o=>String(o).toLowerCase()!=='custom');
@@ -2972,6 +2981,10 @@ function openForm(table, id, initialValues={}){
       obj[f.k] = v;
     });
 
+    if(table==='napBoxes'){
+      obj.totalPorts = obj.splitter==='1:8' ? 8 : 16;
+    }
+
     if(schema.fields.some(f=>f.k==='plan')){
       const plan = e.target.elements.namedItem('plan');
       if(plan && plan.value==='__custom_plan__'){
@@ -2984,6 +2997,20 @@ function openForm(table, id, initialValues={}){
     }
 
     const old = isNew ? null : {...row};
+    if(table==='napBoxes' && old && obj.totalPorts<Number(old.totalPorts)){
+      const occupiedPort = DB.napPorts.find(port=>
+        port.napId===old.id && Number(port.port)>obj.totalPorts &&
+        (port.clientId || port.status!=='Free')
+      );
+      const assignedClient = DB.clients.find(client=>
+        client.napId===old.id && Number(client.port)>obj.totalPorts
+      );
+      const portToKeep = occupiedPort?.port || assignedClient?.port;
+      if(portToKeep){
+        toast(`Cannot reduce ports while port ${portToKeep} is assigned or in use`);
+        return;
+      }
+    }
     const previousState = JSON.parse(JSON.stringify(DB));
 
     if(table==='clients'){
@@ -3290,33 +3317,7 @@ function ensurePorts(box){
   DB.napPorts = DB.napPorts.filter(p=>p.napId!==box.id || Number(p.port)<=num(box.totalPorts));
 }
 
-async function addNapSplitter(ports){
-  const box = DB.napBoxes.find(item=>item.id===state.selectedNapId);
-  if(!box){ toast('Select a NAP box first'); return; }
-  if(ports!==8 && ports!==16){ toast('Choose an 8-port or 16-port splitter'); return; }
-  const currentPorts = Number(box.totalPorts);
-  if(!Number.isSafeInteger(currentPorts) || currentPorts<0 ||
-     !Number.isSafeInteger(currentPorts+ports)){
-    toast('This NAP box has an invalid port count');
-    return;
-  }
-
-  const previousState = JSON.parse(JSON.stringify(DB));
-  box.additionalSplitters = Array.isArray(box.additionalSplitters) ? box.additionalSplitters : [];
-  box.additionalSplitters.push(ports);
-  box.totalPorts = currentPorts+ports;
-  ensurePorts(box);
-
-  if(!await save()){
-    DB = previousState;
-    toast('Could not save the splitter. Please try again.');
-    return;
-  }
-  render();
-  toast(`Added ${ports}-port splitter to ${box.id}`);
-}
-
-function generateInvoices(month){
+async function generateInvoices(month){
   const dueDay = pad(DB.settings.dueDay||5);
   let added = 0;
   DB.clients.filter(c=>c.status!=='Disconnected').forEach(c=>{
@@ -3400,10 +3401,6 @@ document.addEventListener('click', async e=>{
   if(!act) return;
   const a = act.dataset.act;
 
-  if(a==='addNapSplitter'){
-    addNapSplitter(Number(act.dataset.ports));
-    return;
-  }
   if(a==='connectClient'){
     openClientPortModal(act.dataset.id);
     return;
