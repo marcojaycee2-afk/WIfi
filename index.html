@@ -325,121 +325,792 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 .mapboxgl-ctrl-group button span{filter:invert(1)}
 .mapboxgl-ctrl-attrib{font-size:10px}
 
-/* ---------- SPLITTER PANEL (dark) ---------- */
-.splitter-wrap{padding:14px 0}
-.splitter{
-  background:linear-gradient(180deg,#26324a,#1a2438);
-  border-radius:12px;
-  padding:42px 30px 18px;
+/* ---------- NAP BOX / SPLITTER PANEL ---------- */
+.splitter-wrap{
+  padding:12px 0 24px;
+}
+.napbox{
+  --box-black:#090d13;
+  --box-black-2:#101722;
+  --box-edge:#273244;
+  --box-edge-2:#3a4658;
+  --metal:#b9c3cd;
+  --metal-dark:#697584;
+  --blue-1:#1e9bff;
+  --blue-2:#006bd6;
   position:relative;
-  box-shadow:
-    0 20px 50px rgba(0,0,0,.5),
-    inset 0 0 0 2px #334560,
-    inset 0 1px 0 rgba(255,255,255,.08);
-  max-width:820px;
+  max-width:1060px;
   margin:0 auto;
+  padding:26px 24px 22px;
+  border-radius:22px;
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.045),transparent 32%),
+    linear-gradient(180deg,#151e2b 0%,#0a0e14 100%);
+  border:2px solid #2f3a4b;
+  box-shadow:
+    0 28px 60px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 0 0 1px rgba(0,0,0,.45);
+  overflow:hidden;
 }
-.hole{
-  position:absolute;width:16px;height:16px;border-radius:50%;
-  background:radial-gradient(circle at 30% 30%, #1a1a1a, #000);
-  box-shadow:inset 0 2px 3px rgba(255,255,255,.1), 0 2px 3px rgba(0,0,0,.6);
+.napbox:before{
+  content:"";
+  position:absolute;
+  inset:10px;
+  pointer-events:none;
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:16px;
 }
-.hole.left1{left:14px;top:60px}
-.hole.left2{left:14px;bottom:60px}
-.hole.right1{right:14px;top:60px}
-.hole.right2{right:14px;bottom:60px}
-.splitter-label{
-  position:absolute;top:14px;left:44px;
-  font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.15em;
+.napbox-lid{
+  position:absolute;
+  top:22px;
+  right:-64px;
+  width:120px;
+  height:230px;
+  border:2px solid #273244;
+  border-left:0;
+  border-radius:0 18px 18px 0;
+  background:linear-gradient(180deg,#141d29,#080c12);
+  box-shadow:18px 18px 30px rgba(0,0,0,.35);
+  transform:skewY(-1deg);
+  opacity:.9;
 }
-.splitter-id{
-  position:absolute;top:14px;right:44px;
-  font-size:11px;font-weight:800;color:#93c5fd;
-  background:var(--surface-3);border-radius:6px;padding:3px 9px;
-  box-shadow:0 2px 4px rgba(0,0,0,.3);
-  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-  border:1px solid var(--line-2);
+.napbox-lid:after{
+  content:"NAP BOX";
+  position:absolute;
+  left:22px;
+  top:50%;
+  transform:translateY(-50%) rotate(90deg);
+  color:#66758a;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.22em;
 }
+.napbox-screw{
+  position:absolute;
+  width:17px;
+  height:17px;
+  border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,#556273 0 10%,#111720 32%,#020408 72%);
+  border:1px solid #000;
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.12),0 2px 4px rgba(0,0,0,.55);
+  z-index:3;
+}
+.napbox-screw.s1{left:12px;top:70px}
+.napbox-screw.s2{left:12px;bottom:78px}
+.napbox-screw.s3{right:18px;top:70px}
+.napbox-screw.s4{right:18px;bottom:78px}
+
+.napbox-head{
+  position:relative;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:0 28px 12px;
+  padding:9px 12px;
+  border:1px solid #2e3c50;
+  border-radius:10px;
+  background:linear-gradient(180deg,#182230,#0e141d);
+}
+.napbox-head .brand{
+  font-size:13px;
+  font-weight:850;
+  letter-spacing:.12em;
+  color:#edf4ff;
+  white-space:nowrap;
+}
+.napbox-head .meta{
+  color:#91a0b6;
+  font-size:10px;
+  letter-spacing:.05em;
+}
+.napbox-head .spacer{flex:1}
+.napbox-status{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 9px;
+  border-radius:999px;
+  border:1px solid #275638;
+  background:#0d2116;
+  color:#86efac;
+  font-size:10px;
+  font-weight:800;
+}
+.napbox-status .led{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#22c55e;
+  box-shadow:0 0 10px rgba(34,197,94,.7);
+}
+
+.napbox-inner{
+  position:relative;
+  z-index:2;
+  display:grid;
+  grid-template-columns:100px minmax(0,1fr) 86px;
+  gap:14px;
+  padding:14px 12px 10px;
+  border:1px solid #222d3d;
+  border-radius:16px;
+  background:
+    radial-gradient(circle at 50% 0%,rgba(50,72,100,.13),transparent 40%),
+    linear-gradient(180deg,#080d14 0%,#05080c 100%);
+  box-shadow:
+    inset 0 10px 20px rgba(0,0,0,.4),
+    inset 0 0 0 1px rgba(255,255,255,.025);
+}
+
+.napbox-side-rail{
+  position:relative;
+  min-height:100%;
+  border-radius:12px;
+  background:linear-gradient(180deg,#111925,#080d13);
+  border:1px solid #1f2a38;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.napbox-side-rail.left{
+  padding:14px 10px;
+}
+.napbox-side-rail.right{
+  padding:14px 8px;
+}
+.napbox-side-title{
+  font-size:8px;
+  letter-spacing:.16em;
+  font-weight:850;
+  color:#6f7f94;
+  writing-mode:vertical-rl;
+  transform:rotate(180deg);
+  margin:auto;
+}
+.fiber-loops{
+  position:absolute;
+  inset:20px 18px;
+}
+.fiber-line{
+  position:absolute;
+  left:50%;
+  width:62px;
+  height:138px;
+  border:4px solid transparent;
+  border-left-color:#f5c243;
+  border-bottom-color:#f5c243;
+  border-radius:0 0 0 45px;
+  transform:translateX(-4px);
+  filter:drop-shadow(0 0 2px rgba(245,194,67,.22));
+}
+.fiber-line.f2{
+  top:20px;
+  left:54%;
+  height:153px;
+  border-left-color:#18c879;
+  border-bottom-color:#18c879;
+}
+.fiber-line.f3{
+  top:12px;
+  left:48%;
+  height:165px;
+  border-left-color:#2b89ff;
+  border-bottom-color:#2b89ff;
+}
+.fiber-clamp{
+  position:absolute;
+  left:50%;
+  bottom:40px;
+  width:42px;
+  height:10px;
+  transform:translateX(-50%);
+  border-radius:3px;
+  background:#1a222d;
+  border:1px solid #303d4d;
+  box-shadow:0 2px 3px rgba(0,0,0,.55);
+}
+.fiber-entry{
+  position:absolute;
+  left:50%;
+  bottom:20px;
+  width:26px;
+  height:18px;
+  transform:translateX(-50%);
+  border:2px solid #293444;
+  border-radius:50%/60%;
+  background:#05080c;
+}
+.fiber-grommet{
+  position:absolute;
+  left:50%;
+  bottom:7px;
+  width:18px;
+  height:10px;
+  transform:translateX(-50%);
+  border-radius:50%;
+  background:#020407;
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.05);
+}
+
+.napbox-main{
+  min-width:0;
+}
+.splitter-module{
+  position:relative;
+  padding:14px 14px 16px;
+  border:1px solid #707b88;
+  border-radius:10px;
+  background:
+    linear-gradient(180deg,#edf1f4 0%,#d7dde3 100%);
+  box-shadow:
+    0 8px 14px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.8),
+    inset 0 -1px 0 rgba(68,78,90,.35);
+}
+.splitter-module:before,
+.splitter-module:after{
+  content:"";
+  position:absolute;
+  top:8px;
+  bottom:8px;
+  width:8px;
+  border-radius:4px;
+  background:linear-gradient(180deg,#e9eef2,#adb7c2);
+}
+.splitter-module:before{left:-5px}
+.splitter-module:after{right:-5px}
+.splitter-module-title{
+  color:#1f2a36;
+  font-size:13px;
+  font-weight:900;
+  letter-spacing:.02em;
+}
+.splitter-module-sub{
+  margin-top:2px;
+  color:#66717c;
+  font-size:9px;
+  font-weight:700;
+}
+.splitter-module-specs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:9px;
+}
+.splitter-module-spec{
+  padding:3px 7px;
+  border:1px solid #b9c2cb;
+  border-radius:5px;
+  background:#eef2f5;
+  color:#4d5966;
+  font-size:8px;
+  font-weight:750;
+}
+.splitter-input{
+  position:absolute;
+  left:-11px;
+  top:52%;
+  width:22px;
+  height:22px;
+  transform:translateY(-50%);
+  border-radius:50%;
+  border:3px solid #3f4852;
+  background:#f5c243;
+  box-shadow:0 0 0 3px rgba(0,0,0,.13);
+}
+.splitter-output-row{
+  display:grid;
+  grid-template-columns:repeat(8,minmax(0,1fr));
+  gap:5px;
+  margin-top:12px;
+}
+.splitter-out{
+  min-width:0;
+  text-align:center;
+}
+.splitter-out .n{
+  display:block;
+  margin-bottom:3px;
+  color:#3a4652;
+  font-size:8px;
+  font-weight:900;
+}
+.splitter-out .adapter{
+  position:relative;
+  height:30px;
+  border-radius:5px;
+  background:linear-gradient(180deg,#188ff8,#0068cf 72%,#030509 73%);
+  border:1px solid #00539e;
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.25),0 3px 4px rgba(0,0,0,.28);
+}
+.splitter-out .adapter:after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:9px;
+  width:9px;
+  height:10px;
+  transform:translateX(-50%);
+  border-radius:2px;
+  background:#03060a;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+}
+
+.customer-panel{
+  margin-top:14px;
+  padding:12px 12px 14px;
+  border:1px solid #232f3f;
+  border-radius:12px;
+  background:linear-gradient(180deg,#0f1620,#080c12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+.customer-panel-head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:10px;
+}
+.customer-panel-head strong{
+  color:#e6edf7;
+  font-size:11px;
+  letter-spacing:.08em;
+}
+.customer-panel-head span{
+  color:#728096;
+  font-size:9px;
+}
+.customer-panel-head .spacer{flex:1}
+.port-count-badge{
+  padding:4px 7px;
+  border-radius:6px;
+  background:#162235;
+  border:1px solid #30445e;
+  color:#9dc7ff;
+  font-size:9px;
+  font-weight:850;
+}
+.port-bank{
+  margin-top:10px;
+  padding:8px;
+  border-radius:9px;
+  border:1px solid #1f2a38;
+  background:#080c12;
+}
+.port-bank + .port-bank{margin-top:8px}
+.port-bank-label{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin-bottom:7px;
+  color:#8391a5;
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.port-bank-label:before{
+  content:"";
+  width:7px;
+  height:7px;
+  border-radius:2px;
+  background:#2c8dff;
+  box-shadow:0 0 7px rgba(44,141,255,.35);
+}
+.port-bank-label .spacer{flex:1}
 .splitter-ports{
   display:grid;
   grid-template-columns:repeat(8,minmax(0,1fr));
-  gap:6px;
-  padding:14px 8px 0;
-}
-.splitter-port-bank{display:grid;gap:4px}
-.splitter-port-bank-label{
-  padding:3px 8px;border-radius:5px;background:#dce5ed;color:#344256;
-  font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
-}
-.splitter-tray{
-  min-height:210px;margin:14px 8px 18px;position:relative;
-  border:1px solid #0b0f16;border-radius:6px 6px 12px 12px;
-  background:linear-gradient(180deg,#111923 0%,#080b10 100%);
-  box-shadow:inset 0 4px 8px rgba(0,0,0,.75),inset 0 1px 0 rgba(255,255,255,.06);
-}
-.splitter-tray:after{
-  content:"";position:absolute;bottom:14px;left:22%;right:22%;height:30px;
-  border:1px solid #080b10;border-radius:4px;
-  background:linear-gradient(180deg,#1b2430,#111720);
-  box-shadow:0 3px 5px rgba(0,0,0,.5);
+  gap:8px;
 }
 .port-cell{
   position:relative;
-  height:72px;
+  min-width:0;
+  height:82px;
+  padding:6px 4px 5px;
+  border:1px solid #1f2b3a;
+  border-radius:8px;
+  background:linear-gradient(180deg,#111927,#080c12);
   cursor:pointer;
-  display:flex;
-  justify-content:center;
-  align-items:flex-end;
-  transition:transform .18s;
+  transition:
+    transform .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease;
 }
-.port-cell:hover{transform:translateY(-4px)}
-.port-cell .connector{
-  position:absolute;top:10px;
-  width:42px;height:34px;
-  background:linear-gradient(180deg,#1590ff,#006bd6);
-  border-radius:5px 5px 2px 2px;
-  box-shadow:inset 0 2px 2px rgba(255,255,255,.25), 0 4px 5px rgba(0,0,0,.5);
-  z-index:2;
-}
-.port-cell .body{
-  width:44px;height:46px;
-  background:linear-gradient(180deg,#252525,#090909);
-  border-radius:4px;
-  box-shadow:inset 0 1px 1px rgba(255,255,255,.1), 0 3px 5px rgba(0,0,0,.7);
+.port-cell:hover{
+  transform:translateY(-2px);
+  border-color:#3b5a7d;
+  box-shadow:0 8px 14px rgba(0,0,0,.25);
 }
 .port-cell .num{
-  position:absolute;top:-4px;left:50%;transform:translateX(-50%);
-  font-size:10px;font-weight:800;color:var(--ink-2);
+  position:static;
+  display:block;
+  margin-bottom:6px;
+  text-align:center;
+  transform:none;
+  font-size:9px;
+  color:#8c9bb0;
 }
-.port-cell.available .connector{background:linear-gradient(180deg,#168bff,#0067c9)}
+.port-cell .body{
+  position:absolute;
+  left:50%;
+  top:28px;
+  width:44px;
+  height:38px;
+  transform:translateX(-50%);
+  border-radius:4px;
+  background:linear-gradient(180deg,#262626,#090909);
+  border:1px solid #050505;
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.08),
+    0 4px 7px rgba(0,0,0,.68);
+}
+.port-cell .connector{
+  position:absolute;
+  z-index:2;
+  left:50%;
+  top:22px;
+  width:40px;
+  height:27px;
+  transform:translateX(-50%);
+  border-radius:4px 4px 2px 2px;
+  background:linear-gradient(180deg,#1594ff,#006bd6);
+  border:1px solid #0056a6;
+  box-shadow:
+    inset 0 2px 2px rgba(255,255,255,.25),
+    0 2px 5px rgba(0,0,0,.45);
+}
+.port-cell .connector:after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:8px;
+  width:11px;
+  height:9px;
+  transform:translateX(-50%);
+  border-radius:2px;
+  background:#02050a;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);
+}
+.port-cell .port-name{
+  position:absolute;
+  left:5px;
+  right:5px;
+  bottom:5px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-align:center;
+  color:#8492a7;
+  font-size:7px;
+  font-weight:700;
+}
+
+.port-cell .fiber-color-mark{
+  position:absolute;
+  right:6px;
+  top:7px;
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,.35);
+  box-shadow:0 0 0 1px rgba(0,0,0,.55),0 1px 4px rgba(0,0,0,.45);
+}
+.port-cell .fiber-color-label{
+  position:absolute;
+  left:5px;
+  right:5px;
+  bottom:5px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-align:center;
+  color:#93a1b4;
+  font-size:6.5px;
+  font-weight:800;
+  letter-spacing:.02em;
+}
+.fiber-color-field{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 62px;
+  gap:8px;
+  align-items:end;
+}
+.fiber-color-preview{
+  height:42px;
+  border:1px solid #334155;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  background:#101722;
+}
+.fiber-color-preview .swatch{
+  width:24px;
+  height:24px;
+  border-radius:7px;
+  border:1px solid rgba(255,255,255,.35);
+  box-shadow:0 2px 7px rgba(0,0,0,.45);
+}
+.port-cell .state-led{
+  position:absolute;
+  left:6px;
+  top:7px;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#168bff;
+  box-shadow:0 0 7px rgba(22,139,255,.55);
+}
 .port-cell.connected .connector{background:linear-gradient(180deg,#22c55e,#15803d)}
+.port-cell.connected .state-led{background:#22c55e;box-shadow:0 0 7px rgba(34,197,94,.6)}
 .port-cell.warning .connector{background:linear-gradient(180deg,#facc15,#ca8a04)}
+.port-cell.warning .state-led{background:#facc15;box-shadow:0 0 7px rgba(250,204,21,.6)}
 .port-cell.broken .connector{background:linear-gradient(180deg,#9ca3af,#4b5563)}
-.port-cell.selected .body{outline:3px solid #38bdf8;outline-offset:2px}
-.port-cell.selected .connector{box-shadow:0 0 14px #38bdf8,inset 0 2px 2px rgba(255,255,255,.25)}
+.port-cell.broken .state-led{background:#ef4444;box-shadow:0 0 7px rgba(239,68,68,.55)}
+.port-cell.selected{
+  border-color:#38bdf8;
+  box-shadow:
+    0 0 0 1px #38bdf8,
+    0 0 18px rgba(56,189,248,.16);
+}
+.port-cell.selected .connector{
+  box-shadow:
+    0 0 14px rgba(56,189,248,.65),
+    inset 0 2px 2px rgba(255,255,255,.25);
+}
 .port-cell .tick{
-  position:absolute;bottom:2px;right:6px;
-  font-size:9px;font-weight:800;
-  padding:1px 4px;border-radius:4px;
+  position:absolute;
+  right:5px;
+  top:6px;
+  font-size:6px;
+  line-height:1.35;
+  font-weight:900;
+  padding:2px 4px;
+  border-radius:4px;
+  letter-spacing:.03em;
 }
 .port-cell.connected .tick.paid{background:#14532d;color:#86efac}
 .port-cell.connected .tick.unpaid{background:#7f1d1d;color:#fca5a5}
-.splitter-foot{
-  display:flex;justify-content:space-between;align-items:center;
-  gap:10px;flex-wrap:wrap;padding:0 14px 4px;
-  font-size:10px;color:var(--muted);font-weight:600;
-}
-.splitter-foot .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
 
+.grounding-box{
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 10px;
+  border:1px solid #2c323b;
+  border-radius:8px;
+  background:linear-gradient(180deg,#1a1f25,#0e1217);
+}
+.grounding{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+.ground-symbol{
+  width:22px;
+  height:22px;
+  border-radius:5px;
+  display:grid;
+  place-items:center;
+  background:#aeb9c4;
+  color:#17202a;
+  font-weight:900;
+  font-size:13px;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.6);
+}
+.grounding strong{
+  display:block;
+  color:#d9e1ea;
+  font-size:8px;
+  letter-spacing:.08em;
+}
+.grounding small{
+  display:block;
+  color:#7d899a;
+  font-size:7px;
+}
+.ground-wire{
+  width:80px;
+  height:3px;
+  border-radius:4px;
+  background:linear-gradient(90deg,#f4c33c 0 45%,#19c87a 45% 100%);
+  box-shadow:0 0 5px rgba(244,195,60,.2);
+}
+
+.cable-entry-panel{
+  margin-top:14px;
+  padding:9px 10px 11px;
+  border-top:1px solid #192330;
+}
+.cable-entry-title{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:#78879a;
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  margin-bottom:7px;
+}
+.cable-entry-title .spacer{flex:1}
+.grommet-grid{
+  display:grid;
+  grid-template-columns:repeat(8,minmax(0,1fr));
+  gap:5px;
+}
+.grommet{
+  height:21px;
+  border-radius:5px;
+  border:1px solid #161c25;
+  background:linear-gradient(180deg,#202832,#090c11);
+  display:grid;
+  place-items:center;
+}
+.grommet i{
+  display:block;
+  width:12px;
+  height:8px;
+  border-radius:50%;
+  background:#030507;
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.05);
+}
+
+.napbox-right-stack{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.napbox-mini{
+  padding:8px;
+  border-radius:9px;
+  border:1px solid #222c39;
+  background:linear-gradient(180deg,#111924,#070c11);
+}
+.napbox-mini .label{
+  color:#728096;
+  font-size:7px;
+  font-weight:850;
+  letter-spacing:.1em;
+}
+.napbox-mini .value{
+  margin-top:3px;
+  color:#edf4ff;
+  font-size:11px;
+  font-weight:850;
+}
+.napbox-mini .sub{
+  margin-top:2px;
+  color:#738096;
+  font-size:7px;
+  line-height:1.35;
+}
+.napbox-progress{
+  height:6px;
+  margin-top:7px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#1a2330;
+}
+.napbox-progress span{
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,#168bff,#38bdf8);
+}
+.napbox-key{
+  margin-top:auto;
+}
+.napbox-key .row{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  margin-top:4px;
+  color:#738096;
+  font-size:7px;
+}
+.napbox-key .dot{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+}
+.napbox-key .blue{background:#168bff}
+.napbox-key .green{background:#22c55e}
+.napbox-key .amber{background:#facc15}
+.napbox-key .red{background:#ef4444}
+
+.napbox-foot{
+  position:relative;
+  z-index:2;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  margin:12px 28px 0;
+  padding-top:9px;
+  border-top:1px solid #222b38;
+}
+.napbox-foot-note{
+  color:#657388;
+  font-size:8px;
+}
+.napbox-foot .spacer{flex:1}
+.napbox-foot .meter{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border:1px solid #28374b;
+  border-radius:6px;
+  background:#0d1420;
+  color:#91a0b6;
+  font-size:8px;
+  font-weight:800;
+}
+.napbox-foot .meter strong{color:#dce7f4}
+
+@media(max-width:860px){
+  .napbox{
+    padding:20px 16px 18px;
+  }
+  .napbox-inner{
+    grid-template-columns:58px minmax(0,1fr) 70px;
+    gap:9px;
+    padding:10px;
+  }
+  .napbox-side-title{font-size:7px}
+  .splitter-ports{gap:5px}
+  .port-cell{height:76px}
+  .port-cell .body{width:40px;height:35px}
+  .port-cell .connector{width:37px;height:25px}
+  .grommet-grid{gap:4px}
+}
 @media(max-width:640px){
-  .splitter{padding:36px 14px 16px}
-  .port-cell{height:64px}
-  .port-cell .connector{width:36px;height:30px;top:8px}
-  .port-cell .body{width:38px;height:40px}
-  .splitter-label{left:32px;font-size:9px}
-  .splitter-id{right:32px;font-size:10px}
-  .splitter-tray{min-height:160px}
-  .splitter-foot{padding-left:8px;padding-right:8px}
+  .napbox-lid{display:none}
+  .napbox-head{margin:0 8px 10px;flex-wrap:wrap}
+  .napbox-head .meta{order:3;width:100%}
+  .napbox-inner{grid-template-columns:1fr;padding:8px}
+  .napbox-side-rail.right{display:none}
+  .napbox-side-rail.left{min-height:54px;height:54px}
+  .napbox-side-title{
+    writing-mode:horizontal-tb;
+    transform:none;
+    text-align:center;
+    padding-top:5px;
+  }
+  .fiber-loops{display:none}
+  .splitter-output-row{gap:3px}
+  .customer-panel{padding:9px}
+  .splitter-ports{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .port-cell{height:74px}
+  .napbox-foot{margin:10px 8px 0}
+}
+@media(max-width:400px){
+  .napbox{padding:14px 10px}
+  .splitter-module{padding:11px}
+  .splitter-output-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .splitter-ports{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .port-cell{height:70px}
 }
 
 /* =====================================================
@@ -604,7 +1275,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 
 <script>
 /* =========================================================================
-   ISP MANAGER — dark mode + receipts
+   ISP MANAGER — dark mode + upgraded physical NAP box visualizer + receipts
    ========================================================================= */
 
 const KEY = 'isp-manager-v3';
@@ -713,6 +1384,31 @@ function splitterPortCount(choice){
 /* ------------------------------ helpers ------------------------------ */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const FIBER_COLORS = [
+  ['#0072bc','Blue'],
+  ['#f58220','Orange'],
+  ['#2e8b57','Green'],
+  ['#8b5a2b','Brown'],
+  ['#7b8190','Slate'],
+  ['#f5f5f5','White'],
+  ['#e53935','Red'],
+  ['#111827','Black'],
+  ['#f4c430','Yellow'],
+  ['#7c3aed','Violet'],
+  ['#f472b6','Rose'],
+  ['#14b8a6','Aqua']
+];
+const FIBER_COLOR_MAP = Object.fromEntries(FIBER_COLORS.map(([hex,name])=>[hex.toLowerCase(),name]));
+const fiberColorName = value => FIBER_COLOR_MAP[String(value||'').toLowerCase()] || (value ? 'Custom' : 'Not recorded');
+const fiberColorOptions = (current='') => {
+  const normalized = String(current||'').toLowerCase();
+  return `<option value="">— Not recorded —</option>${FIBER_COLORS.map(([hex,name])=>
+    `<option value="${hex}" ${normalized===hex?'selected':''}>${name}</option>`
+  ).join('')}<option value="__custom__" ${normalized && !FIBER_COLOR_MAP[normalized]?'selected':''}>Custom color</option>`;
+};
+const fiberColorHex = value => /^#[0-9a-f]{6}$/i.test(String(value||'')) ? String(value) : '#94a3b8';
+const escStyleHex = value => fiberColorHex(value).replace(/[^#0-9a-f]/gi,'');
 const peso = n => '₱' + Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2, maximumFractionDigits:2});
 const num  = n => Number(n||0);
 const pad  = n => String(n).padStart(2,'0');
@@ -1055,7 +1751,7 @@ function seed(){
   napBoxes.forEach(b=>{
     for(let i=1;i<=b.totalPorts;i++){
       const c = clients.find(x => x.napId===b.id && Number(x.port)===i);
-      napPorts.push({id:`NP-${b.id}-${i}`, napId:b.id, port:i, clientId: c ? c.id : '', status: c ? 'Used' : 'Free', notes:''});
+      napPorts.push({id:`NP-${b.id}-${i}`, napId:b.id, port:i, clientId: c ? c.id : '', status: c ? 'Used' : 'Free', notes:'', fiberColor:''});
     }
   });
 
@@ -1213,6 +1909,8 @@ async function init(){
   });
   // ensure all payments have a receiptNo
   (DB.payments||[]).forEach(p=>{ if(!p.receiptNo) p.receiptNo = nextReceiptNo(); });
+  // Backward-compatible fiber color field for existing NAP ports.
+  (DB.napPorts||[]).forEach(p=>{ if(typeof p.fiberColor!=='string') p.fiberColor=''; });
   state.month = state.month || ym(new Date());
   document.getElementById('subBrand').textContent = DB.settings.business;
   save();
@@ -2282,57 +2980,128 @@ function napSplitterView(){
   if(!DB.napBoxes.length){
     return `<div class="card"><div class="empty"><div class="big">🔌</div>No NAP boxes yet.</div></div>`;
   }
+
   if(!state.selectedNapId || !DB.napBoxes.find(b=>b.id===state.selectedNapId)){
     state.selectedNapId = DB.napBoxes[0].id;
   }
+
   const box = DB.napBoxes.find(b=>b.id===state.selectedNapId);
   const s = napStats(box);
+  const splitRatio = normalizeSplitterChoice(box.splitter, box.totalPorts);
+  const splitMatch = splitRatio.match(/^2:(\d+)$/);
+  const portsPerBank = splitMatch ? Number(splitMatch[1]) : Number(splitRatio) || 8;
+  const bankCount = splitMatch ? 2 : 1;
+  const usedPct = s.total ? Math.round((s.used / s.total) * 100) : 0;
 
   const selector = `
-    <div class="card" style="margin-bottom:12px">
-      <label class="field" style="margin-bottom:0">
-        <span>Select NAP Box</span>
-        <select id="napPicker">
-          ${DB.napBoxes.map(b=>`<option value="${esc(b.id)}" ${b.id===box.id?'selected':''}>${esc(b.id)} — ${esc(b.label||'')} (${napStats(b).used}/${napStats(b).total})</option>`).join('')}
-        </select>
-      </label>
+    <div class="card" style="margin-bottom:10px">
+      <div class="flex">
+        <label class="field" style="flex:1 1 280px;margin-bottom:0">
+          <span>Select NAP Box</span>
+          <select id="napPicker">
+            ${DB.napBoxes.map(b=>{
+              const st = napStats(b);
+              return `<option value="${esc(b.id)}" ${b.id===box.id?'selected':''}>
+                ${esc(b.id)} — ${esc(b.label||'')} (${st.used}/${st.total})
+              </option>`;
+            }).join('')}
+          </select>
+        </label>
+        <div class="napbox-mini" style="min-width:150px;align-self:end">
+          <div class="label">SPLITTER CONFIGURATION</div>
+          <div class="value">${splitMatch ? `2 × 1:${portsPerBank}` : `1 × 1:${portsPerBank}`}</div>
+          <div class="sub">${s.total} customer ports · ${s.free} available</div>
+        </div>
+      </div>
     </div>`;
 
   const renderPortCell = p=>{
     const c = DB.clients.find(x=>x.id===p.clientId);
-    const status = p.status==='Used' ? (c && c.status==='Suspended' ? 'warning' : 'connected')
-      : p.status==='Faulty' ? 'broken'
-      : p.status==='Reserved' ? 'warning'
-      : 'available';
-    const paid = c ? billingRows().filter(r=>r.clientId===c.id).every(r=>r.balance<=0) : false;
+    const status = p.status==='Used'
+      ? (c && c.status==='Suspended' ? 'warning' : 'connected')
+      : p.status==='Faulty'
+        ? 'broken'
+        : p.status==='Reserved'
+          ? 'warning'
+          : 'available';
+
+    const paid = c
+      ? billingRows().filter(r=>r.clientId===c.id).every(r=>r.balance<=0)
+      : false;
+
     const tick = status==='connected'
-      ? `<span class="tick ${paid?'paid':'unpaid'}">${paid?'PAID':'UNPAID'}</span>` : '';
-    const label = c ? esc(c.name) : (p.status==='Faulty' ? 'BROKEN' : p.status==='Reserved' ? 'RESERVED' : 'AVAILABLE');
+      ? `<span class="tick ${paid?'paid':'unpaid'}">${paid?'PAID':'UNPAID'}</span>`
+      : '';
+
+    const label = c
+      ? esc(c.name)
+      : (p.status==='Faulty' ? 'BROKEN'
+        : p.status==='Reserved' ? 'RESERVED'
+        : 'AVAILABLE');
+    const fiberHex = p.fiberColor ? escStyleHex(p.fiberColor) : '';
+    const fiberName = fiberColorName(p.fiberColor);
+    const fiberMark = fiberHex
+      ? `<span class="fiber-color-mark" style="background:${fiberHex}" title="Fiber cable: ${esc(fiberName)}"></span>`
+      : '';
+
+    const stateText = p.status==='Used'
+      ? (c && c.status==='Suspended' ? 'SUSPENDED' : 'CONNECTED')
+      : p.status.toUpperCase();
+
     return `
-      <div class="port-cell ${status}" data-act="openPort" data-napid="${esc(box.id)}" data-port="${p.port}" title="Port ${p.port} — ${label}">
-        <div class="num">${p.port}</div>
+      <div class="port-cell ${status}"
+           data-act="openPort"
+           data-napid="${esc(box.id)}"
+           data-port="${p.port}"
+           title="Port ${p.port} — ${label}"
+           aria-label="Port ${p.port}, ${stateText}">
+        <span class="state-led" aria-hidden="true"></span>
+        <div class="num">PORT ${String(p.port).padStart(2,'0')}</div>
         <div class="connector"></div>
         <div class="body"></div>
+        ${fiberMark}
+        <div class="port-name">${p.status==='Used' ? `FIBER · ${esc(fiberName)}` : esc(stateText)}</div>
         ${tick}
       </div>`;
   };
-  const portCells = s.ports.map(renderPortCell).join('');
-  const splitRatio = normalizeSplitterChoice(box.splitter, box.totalPorts);
-  const splitMatch = splitRatio.match(/^2:(\d+)$/);
-  const portsPerBank = splitMatch ? Number(splitMatch[1]) : 0;
-  const portLayout = splitMatch
-    ? [0,1].map(index=>`
-      <div class="splitter-port-bank">
-        <div class="splitter-port-bank-label">Splitter ${index+1} · 1:${portsPerBank}</div>
-        <div class="splitter-ports">${s.ports.slice(index*portsPerBank,(index+1)*portsPerBank).map(renderPortCell).join('')}</div>
-      </div>`).join('')
-    : `<div class="splitter-ports">${portCells}</div>`;
 
-  const hasCoordinates = box.lat!=='' && box.lat!=null && box.lng!=='' && box.lng!=null &&
+  const banks = Array.from({length:bankCount},(_,index)=>{
+    const start = index * portsPerBank;
+    const bankPorts = s.ports.slice(start, start + portsPerBank);
+    const bankLabel = splitMatch
+      ? `Splitter ${index+1} · 1:${portsPerBank}`
+      : `Customer output · 1:${portsPerBank}`;
+
+    return `
+      <div class="port-bank">
+        <div class="port-bank-label">
+          ${esc(bankLabel)}
+          <span class="spacer"></span>
+          <span>${bankPorts.filter(p=>p.status==='Used').length}/${bankPorts.length} used</span>
+        </div>
+        <div class="splitter-ports">
+          ${bankPorts.map(renderPortCell).join('')}
+        </div>
+      </div>`;
+  }).join('');
+
+  const splitterOutputs = Array.from({length:8},(_,i)=>`
+    <div class="splitter-out">
+      <span class="n">${i+1}</span>
+      <div class="adapter"></div>
+    </div>
+  `).join('');
+
+  const grommetCount = Math.min(16, Math.max(8, s.total));
+  const grommets = Array.from({length:grommetCount},()=>`<div class="grommet"><i></i></div>`).join('');
+
+  const hasCoordinates = box.lat!=='' && box.lat!=null &&
+    box.lng!=='' && box.lng!=null &&
     Number.isFinite(Number(box.lat)) && Number.isFinite(Number(box.lng));
 
   return `
   ${selector}
+
   <div class="card" style="padding:10px 14px">
     <div class="flex small muted">
       <strong style="color:var(--ink)">${esc(box.id)}</strong>
@@ -2342,24 +3111,129 @@ function napSplitterView(){
     </div>
     <div class="tiny muted" style="margin-top:4px">
       📍 ${esc(box.address||'')}${box.landmark?` · ${esc(box.landmark)}`:''}
-      ${hasCoordinates?` · <button class="map-link" type="button" data-act="focusNapMap" data-id="${esc(box.id)}">map</button>`:''}
+      ${hasCoordinates
+        ? ` · <button class="map-link" type="button" data-act="focusNapMap" data-id="${esc(box.id)}">map</button>`
+        : ''}
     </div>
   </div>
+
   <div class="splitter-wrap">
-    <div class="splitter">
-      <div class="hole left1"></div>
-      <div class="hole left2"></div>
-      <div class="hole right1"></div>
-      <div class="hole right2"></div>
-      <div class="splitter-label">FIBER PORTS · ${esc(box.splitter||'')}</div>
-      <div class="splitter-id">${esc(box.id)}</div>
-      ${portLayout}
-      <div class="splitter-tray" aria-label="Empty enclosure space below the splitter"></div>
-      <div class="splitter-foot">
-        <span><span class="dot" style="background:#168bff"></span>Available</span>
-        <span><span class="dot" style="background:#22c55e"></span>Connected</span>
-        <span><span class="dot" style="background:#facc15"></span>Suspended</span>
-        <span><span class="dot" style="background:#9ca3af"></span>Broken</span>
+    <div class="napbox" role="region" aria-label="${esc(box.id)} NAP box fiber layout">
+      <div class="napbox-lid" aria-hidden="true"></div>
+      <div class="napbox-screw s1"></div>
+      <div class="napbox-screw s2"></div>
+      <div class="napbox-screw s3"></div>
+      <div class="napbox-screw s4"></div>
+
+      <div class="napbox-head">
+        <div class="brand">NAP BOX</div>
+        <div class="meta">FIBER DISTRIBUTION ENCLOSURE · ${esc(splitMatch ? `2 × 1:${portsPerBank}` : `1 × 1:${portsPerBank}`)}</div>
+        <span class="spacer"></span>
+        <span class="napbox-status"><span class="led"></span>${esc(box.status||'Active')}</span>
+      </div>
+
+      <div class="napbox-inner">
+        <aside class="napbox-side-rail left" aria-label="Fiber management channel">
+          <div class="napbox-side-title">FIBER MANAGEMENT</div>
+          <div class="fiber-loops" aria-hidden="true">
+            <span class="fiber-line"></span>
+            <span class="fiber-line f2"></span>
+            <span class="fiber-line f3"></span>
+            <span class="fiber-clamp"></span>
+            <span class="fiber-entry"></span>
+            <span class="fiber-grommet"></span>
+          </div>
+        </aside>
+
+        <section class="napbox-main">
+          <div class="splitter-module">
+            <div class="splitter-module-title">
+              ${splitMatch ? `Dual PLC Splitter · 2 × 1:${portsPerBank}` : `PLC Splitter · 1 × 1:${portsPerBank}`}
+            </div>
+            <div class="splitter-module-sub">
+              Fiber input / splitter tray · SC/UPC distribution · organized internal routing
+            </div>
+
+            <div class="splitter-module-specs">
+              <span class="splitter-module-spec">1260–1650 nm</span>
+              <span class="splitter-module-spec">SC/UPC</span>
+              <span class="splitter-module-spec">Low-loss path</span>
+              <span class="splitter-module-spec">${s.total} OUT</span>
+            </div>
+
+            <div class="splitter-input" title="Incoming fiber"></div>
+            <div class="splitter-output-row" aria-label="Splitter output adapters">
+              ${splitterOutputs}
+            </div>
+          </div>
+
+          <div class="customer-panel">
+            <div class="customer-panel-head">
+              <strong>CUSTOMER OUTPUT PORTS</strong>
+              <span>SC/UPC adapters · numbered for field service</span>
+              <span class="spacer"></span>
+              <span class="port-count-badge">${s.used} / ${s.total} IN USE</span>
+            </div>
+            ${banks}
+          </div>
+
+          <div class="grounding-box">
+            <div class="grounding">
+              <div class="ground-symbol">⏚</div>
+              <div>
+                <strong>GROUNDING / BONDING</strong>
+                <small>Protective earth point for the enclosure</small>
+              </div>
+            </div>
+            <div class="ground-wire" aria-hidden="true"></div>
+          </div>
+
+          <div class="cable-entry-panel">
+            <div class="cable-entry-title">
+              CABLE ENTRY / EXIT
+              <span class="spacer"></span>
+              <span>${grommetCount} cable positions</span>
+            </div>
+            <div class="grommet-grid">${grommets}</div>
+          </div>
+        </section>
+
+        <aside class="napbox-side-rail right" aria-label="NAP box statistics">
+          <div class="napbox-right-stack">
+            <div class="napbox-mini">
+              <div class="label">CAPACITY</div>
+              <div class="value">${s.total} PORTS</div>
+              <div class="sub">${bankCount} splitter bank${bankCount>1?'s':''}</div>
+            </div>
+            <div class="napbox-mini">
+              <div class="label">UTILIZATION</div>
+              <div class="value">${usedPct}%</div>
+              <div class="sub">${s.free} free · ${s.faulty} faulty · ${s.reserved} reserved</div>
+              <div class="napbox-progress"><span style="width:${usedPct}%"></span></div>
+            </div>
+            <div class="napbox-mini">
+              <div class="label">LOCATION</div>
+              <div class="value" style="font-size:9px">${esc(box.id)}</div>
+              <div class="sub">${esc(box.landmark||box.address||'No location note')}</div>
+            </div>
+          </div>
+
+          <div class="napbox-key">
+            <div class="label">PORT STATUS</div>
+            <div class="row"><i class="dot blue"></i> Available</div>
+            <div class="row"><i class="dot green"></i> Connected</div>
+            <div class="row"><i class="dot amber"></i> Suspended / reserved</div>
+            <div class="row"><i class="dot red"></i> Faulty</div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="napbox-foot">
+        <span class="napbox-foot-note">Use the real enclosure layout as the visual model; click any customer port to manage its assignment.</span>
+        <span class="spacer"></span>
+        <span class="meter">USED <strong>${s.used}</strong></span>
+        <span class="meter">FREE <strong>${s.free}</strong></span>
+        ${s.faulty ? `<span class="meter">FAULTY <strong>${s.faulty}</strong></span>` : ''}
       </div>
     </div>
   </div>
@@ -3121,6 +3995,9 @@ function openPortModal(napId, port){
   const p = DB.napPorts.find(x=>x.napId===napId && Number(x.port)===Number(port));
   const curClient = p && p.clientId ? DB.clients.find(c=>c.id===p.clientId) : null;
   const status = p ? p.status : 'Free';
+  const currentFiberColor = p?.fiberColor || '';
+  const standardColor = FIBER_COLOR_MAP[String(currentFiberColor).toLowerCase()] ? currentFiberColor : '';
+  const customColor = standardColor ? '#94a3b8' : fiberColorHex(currentFiberColor);
   const clientOptions = DB.clients.map(c=>
     `<option value="${esc(c.id)}" ${curClient && curClient.id===c.id?'selected':''}>${esc(c.id)} — ${esc(c.name)}</option>`
   ).join('');
@@ -3147,6 +4024,22 @@ function openPortModal(napId, port){
           ${clientOptions}
         </select>
       </label>
+      <div class="field fiber-color-field">
+        <label>
+          <span style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Fiber Cable Color</span>
+          <select name="fiberColor" id="portFiberColor">
+            ${fiberColorOptions(standardColor || (currentFiberColor ? '__custom__' : ''))}
+          </select>
+          <small class="field-hint">Record the actual cable color used on this connected port.</small>
+        </label>
+        <div class="fiber-color-preview" title="Selected fiber cable color">
+          <span class="swatch" id="portFiberSwatch" style="background:${escStyleHex(currentFiberColor || '#94a3b8')}"></span>
+        </div>
+      </div>
+      <label class="field" id="customFiberColorWrap" style="display:${currentFiberColor && !standardColor?'block':'none'}">
+        <span>Custom Fiber Color</span>
+        <input type="color" name="customFiberColor" id="customFiberColor" value="${escStyleHex(customColor)}">
+      </label>
       <label class="field"><span>Notes</span>
         <input name="notes" value="${esc(p?p.notes:'')}">
       </label>
@@ -3158,6 +4051,20 @@ function openPortModal(napId, port){
 
   document.getElementById('backdrop').classList.add('open');
 
+  const fiberSelect = document.getElementById('portFiberColor');
+  const customWrap = document.getElementById('customFiberColorWrap');
+  const customInput = document.getElementById('customFiberColor');
+  const preview = document.getElementById('portFiberSwatch');
+  const updateFiberPreview = ()=>{
+    const isCustom = fiberSelect.value==='__custom__';
+    customWrap.style.display = isCustom ? 'block' : 'none';
+    const color = isCustom ? customInput.value : fiberSelect.value;
+    preview.style.background = color || '#94a3b8';
+  };
+  fiberSelect.addEventListener('change', updateFiberPreview);
+  customInput.addEventListener('input', updateFiberPreview);
+  updateFiberPreview();
+
   document.getElementById('portForm').addEventListener('submit', e=>{
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -3167,9 +4074,14 @@ function openPortModal(napId, port){
     const selectedClientId = fd.get('clientId');
     const clientId = newStatus==='Used' ? selectedClientId : '';
     const notes = fd.get('notes');
+    const selectedFiber = fd.get('fiberColor');
+    const fiberColor = selectedFiber==='__custom__' ? fd.get('customFiberColor') : selectedFiber;
 
     if(newStatus==='Used' && !clientId){
       toast('Choose a client for a used port'); return;
+    }
+    if(newStatus==='Used' && !fiberColor){
+      toast('Choose the fiber cable color for this connection'); return;
     }
     if(clientId){
       const portError = clientPortError({napId, port:portNum}, clientId);
@@ -3178,8 +4090,9 @@ function openPortModal(napId, port){
 
     let p = DB.napPorts.find(x=>x.napId===napId && Number(x.port)===portNum);
     const oldClientId = p ? p.clientId : '';
+    const oldFiberColor = p ? p.fiberColor || '' : '';
     if(!p){
-      p = {id:`NP-${napId}-${portNum}`, napId, port:portNum, clientId:'', status:'Free', notes:''};
+      p = {id:`NP-${napId}-${portNum}`, napId, port:portNum, clientId:'', status:'Free', notes:'', fiberColor:''};
       DB.napPorts.push(p);
     }
     if(newStatus==='Used' && clientId){
@@ -3187,7 +4100,7 @@ function openPortModal(napId, port){
         if(c.id===clientId){
           if(c.napId && Number(c.port) && (c.napId!==napId || Number(c.port)!==portNum)){
             const old = DB.napPorts.find(x=>x.napId===c.napId && Number(x.port)===Number(c.port));
-            if(old){ old.clientId=''; old.status='Free'; }
+            if(old){ old.clientId=''; old.status='Free'; old.fiberColor=''; }
           }
           c.napId = napId; c.port = portNum;
         }
@@ -3206,6 +4119,7 @@ function openPortModal(napId, port){
     p.clientId = (newStatus==='Used' && clientId) ? clientId : '';
     p.status = newStatus==='Used' && !clientId ? 'Free' : newStatus;
     p.notes = notes;
+    p.fiberColor = newStatus==='Free' ? '' : (fiberColor || oldFiberColor || '');
 
     save(); closeModal(); render();
     toast('Port updated');
@@ -3244,6 +4158,11 @@ function openClientPortModal(clientId){
       return true;
     });
   };
+  const currentPortRecord = client.napId && client.port
+    ? DB.napPorts.find(p=>p.napId===client.napId && Number(p.port)===Number(client.port))
+    : null;
+  const currentFiberColor = currentPortRecord?.fiberColor || '';
+
   const boxOptions = DB.napBoxes.map(box=>
     `<option value="${esc(box.id)}" ${box.id===client.napId?'selected':''}>${esc(box.id)}${box.label?` · ${esc(box.label)}`:''}</option>`
   ).join('');
@@ -3260,6 +4179,18 @@ function openClientPortModal(clientId){
       <label class="field"><span>Available Port</span>
         <select name="port" required></select>
       </label>
+      <div class="field fiber-color-field">
+        <label>
+          <span style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Fiber Cable Color</span>
+          <select name="fiberColor" id="clientFiberColor">${fiberColorOptions(currentFiberColor)}</select>
+          <small class="field-hint">Record the physical cable color connected to this port.</small>
+        </label>
+        <div class="fiber-color-preview"><span class="swatch" id="clientFiberSwatch" style="background:${escStyleHex(currentFiberColor||'#94a3b8')}"></span></div>
+      </div>
+      <label class="field" id="clientCustomFiberWrap" style="display:none">
+        <span>Custom Fiber Color</span>
+        <input type="color" name="customFiberColor" id="clientCustomFiberColor" value="#94a3b8">
+      </label>
       <p class="small muted" id="clientPortHelp"></p>
       <div class="modal-actions">
         <button type="button" class="btn" data-act="closeModal">Cancel</button>
@@ -3271,6 +4202,18 @@ function openClientPortModal(clientId){
   const napSelect = form.elements.namedItem('napId');
   const portSelect = form.elements.namedItem('port');
   const help = document.getElementById('clientPortHelp');
+  const fiberSelect = document.getElementById('clientFiberColor');
+  const customWrap = document.getElementById('clientCustomFiberWrap');
+  const customInput = document.getElementById('clientCustomFiberColor');
+  const fiberPreview = document.getElementById('clientFiberSwatch');
+  const updateFiber = ()=>{
+    const isCustom = fiberSelect.value==='__custom__';
+    customWrap.style.display = isCustom ? 'block' : 'none';
+    fiberPreview.style.background = isCustom ? customInput.value : (fiberSelect.value || '#94a3b8');
+  };
+  fiberSelect.addEventListener('change', updateFiber);
+  customInput.addEventListener('input', updateFiber);
+  updateFiber();
   const updatePorts = ()=>{
     const available = getAvailablePorts(napSelect.value);
     const currentPort = client.napId===napSelect.value ? Number(client.port) : 0;
@@ -3295,10 +4238,16 @@ function openClientPortModal(clientId){
     const error = clientPortError({napId, port}, client.id);
     if(error){ toast(error); return; }
 
+    const selectedFiber = fiberSelect.value;
+    const fiberColor = selectedFiber==='__custom__' ? customInput.value : selectedFiber;
+    if(!fiberColor){ toast('Choose the fiber cable color for this connection'); return; }
+
     const old = {...client};
     client.napId = napId;
     client.port = port;
     syncClientPort(client, old);
+    const targetPort = DB.napPorts.find(p=>p.napId===napId && Number(p.port)===port);
+    if(targetPort){ targetPort.fiberColor = fiberColor; }
     save();
     closeModal();
     render();
@@ -3320,7 +4269,7 @@ function syncClientPort(client, old){
     );
     if(!targetPort){
       targetPort = {id:`NP-${client.napId}-${client.port}`, napId:client.napId,
-        port:Number(client.port), clientId:'', status:'Free', notes:''};
+        port:Number(client.port), clientId:'', status:'Free', notes:'', fiberColor:''};
       DB.napPorts.push(targetPort);
     }
     targetPort.clientId=client.id; targetPort.status='Used';
@@ -3352,7 +4301,7 @@ function clientPortError(client, excludeClientId){
 function ensurePorts(box){
   for(let i=1;i<=num(box.totalPorts);i++){
     if(!DB.napPorts.find(p=>p.napId===box.id && Number(p.port)===i)){
-      DB.napPorts.push({id:`NP-${box.id}-${i}`, napId:box.id, port:i, clientId:'', status:'Free', notes:''});
+      DB.napPorts.push({id:`NP-${box.id}-${i}`, napId:box.id, port:i, clientId:'', status:'Free', notes:'', fiberColor:''});
     }
   }
   DB.napPorts = DB.napPorts.filter(p=>p.napId!==box.id || Number(p.port)<=num(box.totalPorts));
