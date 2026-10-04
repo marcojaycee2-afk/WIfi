@@ -414,16 +414,16 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
   background:linear-gradient(180deg,#182230,#0e141d);
 }
 .napbox-head .brand{
-  font-size:13px;
-  font-weight:850;
-  letter-spacing:.12em;
+  font-size:16px;
+  font-weight:900;
+  letter-spacing:.14em;
   color:#edf4ff;
   white-space:nowrap;
 }
 .napbox-head .meta{
-  color:#91a0b6;
-  font-size:10px;
-  letter-spacing:.05em;
+  color:#dfe7f2;
+  font-size:11px;
+  letter-spacing:.06em;
 }
 .napbox-head .spacer{flex:1}
 .napbox-status{
@@ -450,7 +450,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
   position:relative;
   z-index:2;
   display:grid;
-  grid-template-columns:100px minmax(0,1fr) 86px;
+  grid-template-columns:100px minmax(0,1fr);
   gap:14px;
   padding:14px 12px 10px;
   border:1px solid #222d3d;
@@ -580,14 +580,14 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 .splitter-module:after{right:-5px}
 .splitter-module-title{
   color:#1f2a36;
-  font-size:13px;
+  font-size:16px;
   font-weight:900;
   letter-spacing:.02em;
 }
 .splitter-module-sub{
   margin-top:2px;
-  color:#66717c;
-  font-size:9px;
+  color:#4a5865;
+  font-size:11px;
   font-weight:700;
 }
 .splitter-module-specs{
@@ -597,13 +597,13 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
   margin-top:9px;
 }
 .splitter-module-spec{
-  padding:3px 7px;
+  padding:4px 8px;
   border:1px solid #b9c2cb;
   border-radius:5px;
   background:#eef2f5;
-  color:#4d5966;
-  font-size:8px;
-  font-weight:750;
+  color:#2d3748;
+  font-size:10px;
+  font-weight:800;
 }
 .splitter-input{
   position:absolute;
@@ -671,21 +671,21 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 }
 .customer-panel-head strong{
   color:#e6edf7;
-  font-size:11px;
+  font-size:13px;
   letter-spacing:.08em;
 }
 .customer-panel-head span{
-  color:#728096;
-  font-size:9px;
+  color:#a5b5c7;
+  font-size:10px;
 }
 .customer-panel-head .spacer{flex:1}
 .port-count-badge{
-  padding:4px 7px;
+  padding:5px 8px;
   border-radius:6px;
   background:#162235;
   border:1px solid #30445e;
   color:#9dc7ff;
-  font-size:9px;
+  font-size:10px;
   font-weight:850;
 }
 .port-bank{
@@ -3198,34 +3198,6 @@ function napSplitterView(){
           </div>
         </section>
 
-        <aside class="napbox-side-rail right" aria-label="NAP box statistics">
-          <div class="napbox-right-stack">
-            <div class="napbox-mini">
-              <div class="label">CAPACITY</div>
-              <div class="value">${s.total} PORTS</div>
-              <div class="sub">${bankCount} splitter bank${bankCount>1?'s':''}</div>
-            </div>
-            <div class="napbox-mini">
-              <div class="label">UTILIZATION</div>
-              <div class="value">${usedPct}%</div>
-              <div class="sub">${s.free} free · ${s.faulty} faulty · ${s.reserved} reserved</div>
-              <div class="napbox-progress"><span style="width:${usedPct}%"></span></div>
-            </div>
-            <div class="napbox-mini">
-              <div class="label">LOCATION</div>
-              <div class="value" style="font-size:9px">${esc(box.id)}</div>
-              <div class="sub">${esc(box.landmark||box.address||'No location note')}</div>
-            </div>
-          </div>
-
-          <div class="napbox-key">
-            <div class="label">PORT STATUS</div>
-            <div class="row"><i class="dot blue"></i> Available</div>
-            <div class="row"><i class="dot green"></i> Connected</div>
-            <div class="row"><i class="dot amber"></i> Suspended / reserved</div>
-            <div class="row"><i class="dot red"></i> Faulty</div>
-          </div>
-        </aside>
       </div>
 
       <div class="napbox-foot">
