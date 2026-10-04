@@ -593,6 +593,7 @@ let mapLines = [];
 let mapLineEvents = [];
 let mapHoverPopup = null;
 let mapInitToken = 0;
+let mapViewport = null;
 const state = {
   tab:'dashboard',
   month:null,
@@ -1650,8 +1651,8 @@ async function initMap(){
     hideMapContextMenuGlobal();
   };
   const hb = DB.settings.homeBase;
-  let mapCenter = [Number(hb.lat), Number(hb.lng)];
-  let mapZoom = 15;
+  let mapCenter = mapViewport ? [mapViewport.lat, mapViewport.lng] : [Number(hb.lat), Number(hb.lng)];
+  let mapZoom = mapViewport ? mapViewport.zoom : 15;
   if(mapInstance){
     mapInstance.remove();
     mapInstance = null;
@@ -1663,6 +1664,7 @@ async function initMap(){
   if(state.mapFocus){
     mapCenter = [Number(state.mapFocus.lat), Number(state.mapFocus.lng)];
     mapZoom = 18;
+    mapViewport = null;
   }
   mapEngine = null;
   leafletMapOverlays = null;
@@ -1680,6 +1682,10 @@ async function initMap(){
       mapEngine = 'leaflet';
       mapInstance = L.map(el, {zoomControl:false}).setView(mapCenter, mapZoom);
       state.mapFocus = null;
+      mapInstance.on('moveend', ()=>{
+        const center = mapInstance.getCenter();
+        mapViewport = {lat:center.lat, lng:center.lng, zoom:mapInstance.getZoom()};
+      });
       const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         maxZoom:19,
         attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -1731,6 +1737,11 @@ async function initMap(){
       antialias:true
     });
     state.mapFocus = null;
+    mapInstance.on('moveend', ()=>{
+      if(initToken!==mapInitToken || document.getElementById('map')!==el) return;
+      const center = mapInstance.getCenter();
+      mapViewport = {lat:center.lat, lng:center.lng, zoom:mapInstance.getZoom()};
+    });
     let mapLoaded = false;
     mapInstance.on('error', event=>{
       if(initToken!==mapInitToken || mapLoaded || document.getElementById('map')!==el) return;
