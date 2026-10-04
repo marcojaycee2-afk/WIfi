@@ -699,15 +699,15 @@ function parseCoordinates(value){
 }
 
 function normalizeSplitterChoice(value, totalPorts){
-  const legacyChoices = {'1:8':'8','1:16':'16','2:8':'2:16'};
+  const legacyChoices = {'1:8':'8','1:16':'16','2:32':'2:16'};
   const choice = legacyChoices[String(value)] || String(value||'');
-  if(['8','16','2:16','2:32'].includes(choice)) return choice;
-  return Number(totalPorts)>=64 ? '2:32' : Number(totalPorts)>=32 ? '2:16' :
+  if(['8','16','2:8','2:16'].includes(choice)) return choice;
+  return Number(totalPorts)>=32 ? '2:16' :
     Number(totalPorts)>=16 ? '16' : '8';
 }
 
 function splitterPortCount(choice){
-  return ({'8':8,'16':16,'2:16':32,'2:32':64})[choice] || 0;
+  return ({'8':8,'16':16,'2:8':16,'2:16':32})[choice] || 0;
 }
 
 /* ------------------------------ helpers ------------------------------ */
@@ -2866,7 +2866,7 @@ const SCHEMAS = {
       {k:'uplinkId', l:'Uplink (NAP Box)', t:'select', opts:()=>DB.napBoxes.map(b=>b.id)},
       {k:'upstream', l:'Upstream Type', t:'select', opts:()=>['Splitter','OLT','Main Line','Other'], def:()=>'Splitter'},
       {k:'upstreamId', l:'Upstream Device / ID', t:'text'},
-      {k:'splitter', l:'Total Ports', t:'select', req:true, opts:()=>['8','16','2:16','2:32'], def:()=>'8'},
+      {k:'splitter', l:'Total Ports', t:'select', req:true, opts:()=>['8','16','2:8','2:16'], def:()=>'8'},
       {k:'route', l:'Fiber Route / Cable Notes', t:'textarea'},
       {k:'installed', l:'Installation Date', t:'date'},
       {k:'lastMaint', l:'Last Maintenance Date', t:'date'},
