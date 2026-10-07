@@ -1858,6 +1858,7 @@ async function init(){
   (DB.payments||[]).forEach(p=>{ if(!p.receiptNo) p.receiptNo = nextReceiptNo(); });
   // Backward-compatible fiber color field for existing NAP ports.
   (DB.napPorts||[]).forEach(p=>{ if(typeof p.fiberColor!=='string') p.fiberColor=''; });
+  updateCurrentGeneratedInvoiceDueDates();
   state.month = state.month || ym(new Date());
   document.getElementById('subBrand').textContent = DB.settings.business;
   save();
@@ -4349,34 +4350,59 @@ function ensurePorts(box){
   DB.napPorts = DB.napPorts.filter(p=>p.napId!==box.id || Number(p.port)<=num(box.totalPorts));
 }
 
+function generatedInvoiceDueDate(client, month){
+  const match = String(month||'').match(/^(\d{4})-(\d{2})$/);
+  if(!match) return null;
+  const billingYear = Number(match[1]);
+  const billingMonth = Number(match[2]);
+  if(billingMonth<1 || billingMonth>12) return null;
+
+  const installed = String(client.installed||'');
+  const installationMatch = installed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const hasValidInstallationDate = installationMatch &&
+    iso(new Date(`${installed}T00:00:00`))===installed;
+  const invoiceDueDay = hasValidInstallationDate
+    ? Number(installationMatch[3])
+    : Number(DB.settings.dueDay)||5;
+  const lastDayOfMonth = new Date(billingYear, billingMonth, 0).getDate();
+  let dueDate = iso(new Date(
+    billingYear, billingMonth-1, Math.min(invoiceDueDay, lastDayOfMonth)
+  ));
+  if(hasValidInstallationDate && dueDate<=installed){
+    const dayAfterInstallation = new Date(`${installed}T00:00:00`);
+    dayAfterInstallation.setDate(dayAfterInstallation.getDate()+1);
+    dueDate = iso(dayAfterInstallation);
+  }
+  return dueDate;
+}
+
+function updateCurrentGeneratedInvoiceDueDates(){
+  const month = ym(new Date());
+  let updated = 0;
+  (DB.billing||[]).forEach(invoice=>{
+    if(invoice.month!==month || invoice.id!==`INV-${month}-${invoice.clientId}`) return;
+    const client = (DB.clients||[]).find(item=>item.id===invoice.clientId);
+    if(!client) return;
+    const dueDate = generatedInvoiceDueDate(client, month);
+    if(dueDate && invoice.dueDate!==dueDate){
+      invoice.dueDate = dueDate;
+      updated++;
+    }
+  });
+  return updated;
+}
+
 async function generateInvoices(month){
-  const dueDay = pad(DB.settings.dueDay||5);
-  const [billingYear, billingMonth] = month.split('-').map(Number);
-  if(!Number.isInteger(billingYear) || !Number.isInteger(billingMonth) ||
-     billingMonth<1 || billingMonth>12){
+  if(!/^\d{4}-\d{2}$/.test(String(month||'')) ||
+     !generatedInvoiceDueDate({}, month)){
     toast('Choose a valid billing month');
     return;
   }
   let added = 0;
   let updated = 0;
   DB.clients.filter(c=>c.status!=='Disconnected').forEach(c=>{
-    const installed = String(c.installed||'');
-    const installationMatch = installed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    const hasValidInstallationDate = installationMatch &&
-      iso(new Date(`${installed}T00:00:00`))===installed;
-    const invoiceDueDay = hasValidInstallationDate
-      ? Number(installationMatch[3])
-      : Number(dueDay);
-    const lastDayOfMonth = new Date(billingYear, billingMonth, 0).getDate();
-    const dueDateObject = new Date(
-      billingYear, billingMonth-1, Math.min(invoiceDueDay, lastDayOfMonth)
-    );
-    let dueDate = iso(dueDateObject);
-    if(hasValidInstallationDate && dueDate<=installed){
-      const dayAfterInstallation = new Date(`${installed}T00:00:00`);
-      dayAfterInstallation.setDate(dayAfterInstallation.getDate()+1);
-      dueDate = iso(dayAfterInstallation);
-    }
+    const dueDate = generatedInvoiceDueDate(c, month);
+    if(!dueDate) return;
     const invoiceId = `INV-${month}-${c.id}`;
     const existing = DB.billing.find(b=>b.clientId===c.id && b.month===month);
     if(existing){
@@ -4811,6 +4837,7 @@ document.getElementById('fileInput').addEventListener('change', e=>{
       migratePlanPricing();
       addDefaultPricingPlans();
       (DB.payments||[]).forEach(p=>{ if(!p.receiptNo) p.receiptNo = nextReceiptNo(); });
+      updateCurrentGeneratedInvoiceDueDates();
       save();
       document.getElementById('subBrand').textContent = DB.settings.business;
       render();
