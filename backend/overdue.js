@@ -1,3 +1,5 @@
+const { randomInt } = require('node:crypto');
+
 function localDateInTimeZone(date=new Date(), timeZone='Asia/Manila'){
   const parts = new Intl.DateTimeFormat('en-CA',{
     timeZone,
@@ -9,7 +11,7 @@ function localDateInTimeZone(date=new Date(), timeZone='Asia/Manila'){
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function buildOverdueSummary(state, today){
+function buildOverdueSummary(state, today, chooseRandomIndex=randomInt){
   if(!state || !Array.isArray(state.billing) ||
      !Array.isArray(state.payments) || !Array.isArray(state.clients)){
     throw new TypeError('Application state is missing billing, payments, or clients');
@@ -49,13 +51,19 @@ function buildOverdueSummary(state, today){
       name:clientById.get(clientId)?.name || clientId,
       balance:Math.round(details.balance*100)/100,
       invoices:details.invoices
-    }))
-    .sort((a,b)=>b.balance-a.balance);
+    }));
   const amount = value=>`₱${Number(value).toLocaleString('en-PH',{
     minimumFractionDigits:2,
     maximumFractionDigits:2
   })}`;
-  const lines = clients.slice(0,3).map(client=>`${client.name} — ${amount(client.balance)}`);
+  const sample=clients.slice();
+  const sampleCount=Math.min(4,sample.length);
+  for(let index=0;index<sampleCount;index++){
+    const selected=index+chooseRandomIndex(sample.length-index);
+    [sample[index],sample[selected]]=[sample[selected],sample[index]];
+  }
+  const lines = sample.slice(0,sampleCount)
+    .map(client=>`${client.name} — ${amount(client.balance)}`);
   if(clients.length>lines.length) lines.push(`+${clients.length-lines.length} more. Click to view all.`);
   const title=`${clients.length} unpaid client${clients.length===1?'':'s'} · ${amount(totalBalance)} due`;
   const body=lines.join('\n');

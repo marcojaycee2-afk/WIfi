@@ -98,14 +98,13 @@ function Get-OverdueSummary($State) {
   }
 
   if ($overdueInvoices -eq 0) { return $null }
-  $sortedClients = @($clientsWithDebt.Values | Sort-Object -Property Balance -Descending)
+  $sampleCount = [Math]::Min(4, $clientsWithDebt.Count)
+  $sampleClients = @($clientsWithDebt.Values | Get-Random -Count $sampleCount)
   $currency = [string][char]0x20B1
-  $lines = @(
-    $sortedClients |
-      Select-Object -First 3 |
-      ForEach-Object { '{0} - {1}{2:N2}' -f $_.Name, $currency, $_.Balance }
-  )
-  if ($sortedClients.Count -gt 3) { $lines += "+$($sortedClients.Count - 3) more. Click to view all." }
+  $lines = @($sampleClients | ForEach-Object { '{0} - {1}{2:N2}' -f $_.Name, $currency, $_.Balance })
+  if ($clientsWithDebt.Count -gt $sampleCount) {
+    $lines += "+$($clientsWithDebt.Count - $sampleCount) more. Click to view all."
+  }
   $details = $lines -join "`n"
   $title = "$($clientsWithDebt.Count) unpaid client(s) - $currency$($totalBalance.ToString('N2')) due"
   return @{

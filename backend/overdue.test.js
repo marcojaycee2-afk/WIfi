@@ -35,7 +35,7 @@ test('returns no notification when there are no overdue balances', () => {
   assert.equal(buildOverdueSummary(state, '2026-03-15'), null);
 });
 
-test('notification names only three clients and directs the user to the full due list', () => {
+test('notification randomly samples four clients and directs the user to the full due list', () => {
   const clients = Array.from({length:9},(_,index)=>({id:`C-${index+1}`,name:`Client ${index+1}`}));
   const state = {
     clients,
@@ -48,13 +48,14 @@ test('notification names only three clients and directs the user to the full due
     payments:[]
   };
 
-  const summary = buildOverdueSummary(state,'2026-03-15');
+  const summary = buildOverdueSummary(state,'2026-03-15',max=>max-1);
   assert.equal(summary.notification.title,'9 unpaid clients · ₱900.00 due');
-  assert.match(summary.notification.body,/Client 1 — ₱100\.00/);
-  assert.match(summary.notification.body,/Client 2 — ₱100\.00/);
-  assert.match(summary.notification.body,/Client 3 — ₱100\.00/);
-  assert.match(summary.notification.body,/\+6 more\. Click to view all\./);
-  assert.doesNotMatch(summary.notification.body,/Client [4-9] —/);
+  const shownClients=[...summary.notification.body.matchAll(/Client \d+ — ₱100\.00/g)]
+    .map(match=>Number(match[0].match(/\d+/)[0]));
+  assert.equal(shownClients.length,4);
+  assert.equal(new Set(shownClients).size,4);
+  assert.match(summary.notification.body,/\+5 more\. Click to view all\./);
+  assert.deepEqual(shownClients,[9,1,2,3]);
 });
 
 test('uses the configured local timezone date for daily de-duplication', () => {
