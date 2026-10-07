@@ -1541,6 +1541,117 @@ function normalizePlanLabel(plan){
   return PLAN_LABELS[planKey(plan)] || plan;
 }
 
+function pushErrorMessage(response, data){
+  return data?.error || `Notification request failed (${response.status})`;
+}
+
+async function notificationRequest(url, options={}){
+  const response = await fetch(url, {
+    ...options,
+    headers:{'Content-Type':'application/json',...(options.headers||{})}
+  });
+  const data = await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(pushErrorMessage(response,data));
+  return data;
+}
+
+function pushButtonState(enabled){
+  const enable = document.querySelector('[data-act="enablePushNotifications"]');
+  const disable = document.querySelector('[data-act="disablePushNotifications"]');
+  if(enable) enable.hidden = enabled;
+  if(disable) disable.hidden = !enabled;
+}
+
+async function updatePushNotificationStatus(){
+  const status = document.getElementById('pushNotificationStatus');
+  if(!status) return;
+  try{
+    const config = await notificationRequest('/api/notifications/config');
+    if(!config.enabled){
+      status.textContent = 'Notifications are not configured on the server yet. Ask the administrator to add VAPID keys.';
+      pushButtonState(false);
+      return;
+    }
+    if(!('Notification' in window) || !('serviceWorker' in navigator)){
+      status.textContent = 'This browser does not support web push notifications.';
+      pushButtonState(false);
+      return;
+    }
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    const subscription = registration && await registration.pushManager.getSubscription();
+    const active = Notification.permission==='granted' && Boolean(subscription);
+    status.textContent = active
+      ? 'Daily notifications are enabled on this device.'
+      : Notification.permission==='denied'
+        ? 'Notifications are blocked by this browser. Allow them in site settings to enable reminders.'
+        : 'Notifications are currently off on this device.';
+    pushButtonState(active);
+  }catch(error){
+    console.error('Could not check notification status',error);
+    status.textContent = `Could not check notification status: ${error.message}`;
+  }
+}
+
+function decodeVapidKey(value){
+  const padding='='.repeat((4-value.length%4)%4);
+  const base64=(value+padding).replace(/-/g,'+').replace(/_/g,'/');
+  return Uint8Array.from(atob(base64),character=>character.charCodeAt(0));
+}
+
+async function enablePushNotifications(){
+  try{
+    if(!window.isSecureContext){
+      throw new Error('Notifications require HTTPS (or localhost).');
+    }
+    if(!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)){
+      throw new Error('This browser does not support web push notifications.');
+    }
+    const config=await notificationRequest('/api/notifications/config');
+    if(!config.enabled || !config.publicKey){
+      throw new Error('Notifications are not configured on the server yet. Ask the administrator to add VAPID keys.');
+    }
+    const permission=await Notification.requestPermission();
+    if(permission!=='granted') throw new Error('Browser notification permission was not granted.');
+    const registration=await navigator.serviceWorker.register('/service-worker.js',{scope:'/'});
+    const ready=await navigator.serviceWorker.ready;
+    let subscription=await ready.pushManager.getSubscription();
+    if(!subscription){
+      subscription=await registration.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:decodeVapidKey(config.publicKey)
+      });
+    }
+    await notificationRequest('/api/notifications/subscribe',{
+      method:'POST',
+      body:JSON.stringify(subscription)
+    });
+    toast('Daily overdue notifications enabled on this device');
+    await updatePushNotificationStatus();
+  }catch(error){
+    console.error('Could not enable notifications',error);
+    toast(error.message);
+  }
+}
+
+async function disablePushNotifications(){
+  try{
+    const registration=await navigator.serviceWorker.getRegistration('/');
+    const subscription=registration && await registration.pushManager.getSubscription();
+    if(subscription){
+      await notificationRequest('/api/notifications/subscribe',{
+        method:'DELETE',
+        body:JSON.stringify({endpoint:subscription.endpoint})
+      });
+      await subscription.unsubscribe();
+    }
+    toast('Daily notifications turned off on this device');
+    await updatePushNotificationStatus();
+  }catch(error){
+    console.error('Could not disable notifications',error);
+    toast(error.message);
+  }
+}
+
 function migratePlanPricing(){
   let changed = false;
   const plans = DB.settings.plans || [];
@@ -2079,6 +2190,7 @@ function render(){
   };
   document.getElementById('view').innerHTML = PAGES[state.tab]();
   updateTableScrollControls();
+  if(state.tab==='settings') updatePushNotificationStatus();
   window.scrollTo({top:0, behavior:'instant'});
   if(state.tab==='naps' && state.napView==='map') setTimeout(initMap, 60);
 }
@@ -3630,6 +3742,18 @@ function pageSettings(){
   </div>
 
   <div class="card">
+    <div class="card-head"><h2>Daily Late Payment Notifications</h2></div>
+    <div class="note" id="pushNotificationStatus" style="margin-bottom:12px">
+      Checking notification support…
+    </div>
+    <button class="btn primary block" data-act="enablePushNotifications">Enable on this device</button>
+    <button class="btn block" data-act="disablePushNotifications" style="margin-top:8px" hidden>Turn off on this device</button>
+    <div class="tiny muted" style="margin-top:10px">
+      Sends a daily reminder at 8:00 AM Asia/Manila when unpaid invoices are overdue. The alert includes client names and balances, which may be visible on your lock screen. Requires browser notification permission and HTTPS (localhost is supported).
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-head"><h2>Home Base / OLT</h2></div>
     <div class="note" style="margin-bottom:12px">
       This is the marker on the map that NAP boxes connect to by default. Drag it on the map to reposition.
@@ -4911,6 +5035,14 @@ document.addEventListener('click', async e=>{
     DB.settings.dueDay = Math.min(28, Math.max(1, num(document.getElementById('setDueDay').value)||5));
     document.getElementById('subBrand').textContent = DB.settings.business;
     save(); toast('Settings saved'); render();
+    return;
+  }
+  if(a==='enablePushNotifications'){
+    await enablePushNotifications();
+    return;
+  }
+  if(a==='disablePushNotifications'){
+    await disablePushNotifications();
     return;
   }
 

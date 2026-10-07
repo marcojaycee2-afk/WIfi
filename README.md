@@ -27,3 +27,16 @@ The included Compose setup publishes the app only on localhost; add TLS before m
 The map works without a token using OpenStreetMap tiles. If `MAPBOX_ACCESS_TOKEN` is set on the app service to a Mapbox public token beginning with `pk.`, the app uses Mapbox instead. Mapbox tokens are delivered to the browser, so allow your deployed site's domain in the token settings; never use a secret `sk.` token in the browser app.
 
 The OpenStreetMap fallback requires an internet connection to `tile.openstreetmap.org` and includes OpenStreetMap attribution. Its 3D toggle is available only when Mapbox is configured.
+## Daily overdue-payment notifications
+
+The Settings page can enable a daily web-push reminder separately on each PC or phone. Notifications arrive even when the dashboard is closed. Push requires a supported browser and HTTPS (localhost works for local setup). The reminder summarizes overdue clients and balances and runs at 8:00 AM in `Asia/Manila` by default.
+
+Configure a VAPID key pair on the app server. Generate one with:
+
+```powershell
+npx web-push generate-vapid-keys
+```
+
+Set the generated `publicKey` as `VAPID_PUBLIC_KEY`, the `privateKey` as `VAPID_PRIVATE_KEY`, and set `VAPID_SUBJECT` to a contact URI such as `mailto:admin@your-domain.example`. For Docker Compose, put these values in the ignored local `.env` file; for hosted deployments, set them as secret environment variables. Never publish the private key. `APP_TIMEZONE` controls the schedule timezone (default `Asia/Manila`), and `NOTIFICATION_CRON` can override the schedule (default `0 8 * * *`). Rebuild/restart the app after changing these settings, then sign in and choose **Settings → Enable on this device** on every computer where reminders are wanted.
+
+The app stores push subscriptions in PostgreSQL, independently of exported app-data backups. Keep one running app instance for the daily scheduler; the included Compose setup does this. If the app is stopped at the scheduled time, that day's reminder is skipped. The push service subscription is removed automatically when a browser reports it has expired.
