@@ -160,6 +160,8 @@ td strong{color:var(--ink)}
 .field{display:block;margin-bottom:11px}
 .field>span{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
 .field-hint{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+.custom-speed-box{padding:12px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface-2);margin:8px 0 12px}
+.custom-speed-box[hidden]{display:none!important}
 .tag-editor{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:44px;padding:5px 7px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
 .tag-editor:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
 .tag-chip{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:4px 7px 4px 9px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface-3);color:var(--ink);font-size:12px}
@@ -3958,7 +3960,6 @@ function openReceipt(paymentId){
 
     <div class="rp-label">FOR</div>
     <div class="rp-row"><span>Billing Month:</span><span>${esc(monthLabel(p.month))}</span></div>
-    ${c.plan?`<div class="rp-row"><span>Plan:</span><span>${esc(c.plan)}</span></div>`:''}
     ${monthDue!=null?`<div class="rp-row"><span>Amount Due:</span><span>${peso(monthDue)}</span></div>`:''}
 
     <div class="rp-divider">----------------------------------------</div>
@@ -4020,7 +4021,6 @@ function receiptPlainText(){
     line,
     'FOR',
     `Billing Month: ${monthLabel(p.month)}`,
-    c.plan?`Plan: ${c.plan}`:'',
     line,
     `AMOUNT PAID: ${peso(p.amount)}`,
     `Method: ${p.method||'—'}`,
@@ -4241,12 +4241,14 @@ function openForm(table, id, initialValues={}){
         </select>`;
         const showCustomSpeed = selectedPlan===customPlanValue;
         return `<div class="field"><span>${esc(f.l)}${f.req?' *':''}</span>${input}
-          <label class="field custom-speed-field" data-custom-speed-field style="display:${showCustomSpeed?'block':'none'}">
-            <span>Enter custom speed (Mbps)</span>
-            <input name="customMbps" type="number" min="0.01" step="any" inputmode="decimal"
-              placeholder="e.g. 75" value="${esc(customSpeed)}" ${showCustomSpeed?'required':''}>
-            <small class="field-hint">Type the speed in Mbps, for example 75.</small>
-          </label>
+          <div class="custom-speed-box" data-custom-speed-field ${showCustomSpeed?'':'hidden'}>
+            <label class="field" style="margin:0">
+              <span>Custom speed (Mbps)</span>
+              <input name="customMbps" type="number" min="0.01" step="any" inputmode="decimal"
+                placeholder="Enter any Mbps, e.g. 75" value="${esc(customSpeed)}" ${showCustomSpeed?'required':''}>
+            </label>
+            <small class="field-hint">Enter the download speed you want for this client.</small>
+          </div>
           ${f.hint?`<small class="field-hint">${esc(f.hint)}</small>`:''}</div>`;
       }
       input = `<select name="${f.k}" ${f.req?'required':''}>
@@ -5161,10 +5163,10 @@ document.addEventListener('change', e=>{
     const customSpeedField = e.target.form.querySelector('[data-custom-speed-field]');
     if(customSpeedField){
       const isCustom = e.target.value==='__custom_plan__';
-      customSpeedField.style.display = isCustom ? 'block' : 'none';
+      customSpeedField.hidden = !isCustom;
       const speedInput = customSpeedField.querySelector('input');
       speedInput.required = isCustom;
-      if(isCustom) speedInput.focus();
+      if(isCustom) speedInput.focus({preventScroll:false});
     }
   }
   if(e.target.name==='plan' && e.target.form?.id==='modalForm'){
