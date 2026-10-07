@@ -22,7 +22,8 @@ test('summarizes unpaid invoices due today or earlier, excluding paid and future
   assert.equal(summary.overdueClients, 1);
   assert.equal(summary.totalBalance, 1250);
   assert.match(summary.body, /A Client — ₱1,250\.00/);
-  assert.equal(summary.notifications.length, 1);
+  assert.equal(summary.notification.title,'1 unpaid client · ₱1,250.00 due');
+  assert.match(summary.notification.body,/A Client — ₱1,250\.00/);
 });
 
 test('returns no notification when there are no overdue balances', () => {
@@ -34,7 +35,7 @@ test('returns no notification when there are no overdue balances', () => {
   assert.equal(buildOverdueSummary(state, '2026-03-15'), null);
 });
 
-test('includes every due client in notification chunks', () => {
+test('notification names only three clients and directs the user to the full due list', () => {
   const clients = Array.from({length:9},(_,index)=>({id:`C-${index+1}`,name:`Client ${index+1}`}));
   const state = {
     clients,
@@ -48,9 +49,12 @@ test('includes every due client in notification chunks', () => {
   };
 
   const summary = buildOverdueSummary(state,'2026-03-15');
-  assert.equal(summary.notifications.length,3);
-  for(const client of clients) assert.match(summary.body,new RegExp(client.name));
-  assert.match(summary.notifications[2].body,/Client 9/);
+  assert.equal(summary.notification.title,'9 unpaid clients · ₱900.00 due');
+  assert.match(summary.notification.body,/Client 1 — ₱100\.00/);
+  assert.match(summary.notification.body,/Client 2 — ₱100\.00/);
+  assert.match(summary.notification.body,/Client 3 — ₱100\.00/);
+  assert.match(summary.notification.body,/\+6 more\. Click to view all\./);
+  assert.doesNotMatch(summary.notification.body,/Client [4-9] —/);
 });
 
 test('uses the configured local timezone date for daily de-duplication', () => {

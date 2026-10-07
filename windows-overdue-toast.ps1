@@ -100,23 +100,17 @@ function Get-OverdueSummary($State) {
   if ($overdueInvoices -eq 0) { return $null }
   $sortedClients = @($clientsWithDebt.Values | Sort-Object -Property Balance -Descending)
   $currency = [string][char]0x20B1
-  $partCount = [Math]::Ceiling($sortedClients.Count / 4)
-  $messages = @()
-  for ($part = 0; $part -lt $partCount; $part++) {
-    $lines = @(
-      $sortedClients |
-        Select-Object -Skip ($part * 4) -First 4 |
-        ForEach-Object { '{0} - {1}{2:N2}' -f $_.Name, $currency, $_.Balance }
-    )
-    $details = "$($clientsWithDebt.Count) clients - $currency$($totalBalance.ToString('N2')) outstanding`n$($lines -join "`n")"
-    $messages += @{
-      Title = "$overdueInvoices unpaid invoice(s) due ($($part + 1)/$partCount)"
-      Body = $details
-    }
-  }
+  $lines = @(
+    $sortedClients |
+      Select-Object -First 3 |
+      ForEach-Object { '{0} - {1}{2:N2}' -f $_.Name, $currency, $_.Balance }
+  )
+  if ($sortedClients.Count -gt 3) { $lines += "+$($sortedClients.Count - 3) more. Click to view all." }
+  $details = $lines -join "`n"
+  $title = "$($clientsWithDebt.Count) unpaid client(s) - $currency$($totalBalance.ToString('N2')) due"
   return @{
-    Title = "$overdueInvoices unpaid invoice(s) due"
-    Messages = $messages
+    Title = $title
+    Body = $details
   }
 }
 
@@ -130,10 +124,8 @@ function Invoke-OverdueCheck {
       Write-NotificationLog 'Check completed; no overdue balances.'
       return
     }
-    foreach ($message in $summary.Messages) {
-      Show-Toast $message.Title $message.Body $config.BaseUrl
-    }
-    Write-NotificationLog "Sent $($summary.Messages.Count) reminder toast(s): $($summary.Title)."
+    Show-Toast $summary.Title $summary.Body "$($config.BaseUrl)/#unpaid-reminders"
+    Write-NotificationLog "Sent reminder toast: $($summary.Title)."
   } catch {
     Write-NotificationLog "Check failed: $($_.Exception.Message)"
     throw
@@ -184,7 +176,7 @@ switch ($Action) {
   'Test' {
     if (-not (Get-Module -ListAvailable -Name BurntToast)) { throw 'BurntToast is not installed. Run this script with -Action Setup first.' }
     $testUrl = if (Test-Path -LiteralPath $configPath) { (Get-SavedConfig).BaseUrl } else { Get-SafeWebsiteUrl $BaseUrl }
-    Show-Toast 'NAPBOX notification test' 'Click this notification to open NAPBOX.' $testUrl
+    Show-Toast 'NAPBOX notification test' 'Click this notification to open the unpaid-reminders page.' "$testUrl/#unpaid-reminders"
     Write-Host 'Test notification sent. Check Windows Notifications / Notification Center.'
   }
   'Run' { Invoke-OverdueCheck }

@@ -2159,9 +2159,16 @@ async function init(){
   (DB.napPorts||[]).forEach(p=>{ if(typeof p.fiberColor!=='string') p.fiberColor=''; });
   updateCurrentGeneratedInvoiceDueDates();
   state.month = state.month || ym(new Date());
+  const openUnpaidReminders = window.location.hash==='#unpaid-reminders';
+  if(openUnpaidReminders) state.tab='dashboard';
   document.getElementById('subBrand').textContent = DB.settings.business;
   save();
   render();
+  if(openUnpaidReminders){
+    requestAnimationFrame(()=>{
+      document.getElementById('overdueReminderList')?.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
 }
 
 /* ------------------------------ computed ------------------------------ */
@@ -2351,7 +2358,7 @@ function pageDashboard(){
     </table></div>` : `<div class="empty"><div class="big">🎉</div>No outstanding balances.</div>`}
   </div>
 
-  <div class="card">
+  <div class="card" id="overdueReminderList">
     <div class="card-head"><h2>Overdue / Reminder List</h2>
       <span class="small muted">${overdue.length} account(s)</span></div>
     ${overdue.length ? `

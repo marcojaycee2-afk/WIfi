@@ -190,15 +190,12 @@ async function sendDailyOverdueNotifications(){
     for (const row of subscriptions.rows) {
       let delivered = true;
       try {
-        for (let index=0;index<report.notifications.length;index++) {
-          const notification = report.notifications[index];
-          const payload = JSON.stringify({
-            ...notification,
-            url: '/',
-            tag: `late-payments-${today}-${index+1}`
-          });
-          await webpush.sendNotification(row.subscription, payload);
-        }
+        const payload = JSON.stringify({
+          ...report.notification,
+          url: '/#unpaid-reminders',
+          tag: `late-payments-${today}`
+        });
+        await webpush.sendNotification(row.subscription, payload);
       } catch (error) {
         delivered = false;
         if (error.statusCode === 404 || error.statusCode === 410) {

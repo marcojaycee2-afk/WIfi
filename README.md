@@ -29,7 +29,7 @@ The map works without a token using OpenStreetMap tiles. If `MAPBOX_ACCESS_TOKEN
 The OpenStreetMap fallback requires an internet connection to `tile.openstreetmap.org` and includes OpenStreetMap attribution. Its 3D toggle is available only when Mapbox is configured.
 ## Daily overdue-payment notifications
 
-The Settings page can enable a daily web-push reminder separately on each PC or phone. Notifications arrive even when the dashboard is closed. Push requires a supported browser and HTTPS (localhost works for local setup). The reminder summarizes every client with an unpaid balance on invoices due today or earlier, split across notifications when needed, and runs at 8:00 AM in `Asia/Manila` by default.
+The Settings page can enable a daily web-push reminder separately on each PC or phone. Notifications arrive even when the dashboard is closed. Push requires a supported browser and HTTPS (localhost works for local setup). The reminder shows the three clients with the largest unpaid balances on invoices due today or earlier, the number of additional clients, and links to the full website list; it runs at 8:00 AM in `Asia/Manila` by default.
 
 Configure a VAPID key pair on the app server. Generate one with:
 
@@ -43,7 +43,7 @@ The app stores push subscriptions in PostgreSQL, independently of exported app-d
 
 ## Windows toast notifications
 
-For reminders delivered by Windows itself, use the optional PowerShell scheduled task instead of browser push. Keep the NAPBOX app running and reachable from this PC; Windows Task Scheduler checks every six hours, starting at the configured **Windows local time** (6:00 AM by default: 6 AM, noon, 6 PM, and midnight). Each alert lists clients with any unpaid balance on invoices due today or earlier, including partial payments. The task runs in your Windows account, so you need to be signed in to see the toast. A check missed while the PC sleeps runs when it becomes available again.
+For reminders delivered by Windows itself, use the optional PowerShell scheduled task instead of browser push. Keep the NAPBOX app running and reachable from this PC; Windows Task Scheduler checks every six hours, starting at the configured **Windows local time** (6:00 AM by default: 6 AM, noon, 6 PM, and midnight). Each alert shows the three clients with the largest unpaid balances due today or earlier and how many more are due. Clicking the toast opens the full unpaid-reminder list in NAPBOX. The task runs in your Windows account, so you need to be signed in to see the toast. A check missed while the PC sleeps runs when it becomes available again.
 
 Open PowerShell in the project folder and run:
 
