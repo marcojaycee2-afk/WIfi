@@ -4351,27 +4351,51 @@ function ensurePorts(box){
 
 async function generateInvoices(month){
   const dueDay = pad(DB.settings.dueDay||5);
+  const [billingYear, billingMonth] = month.split('-').map(Number);
+  if(!Number.isInteger(billingYear) || !Number.isInteger(billingMonth) ||
+     billingMonth<1 || billingMonth>12){
+    toast('Choose a valid billing month');
+    return;
+  }
   let added = 0;
+  let updated = 0;
   DB.clients.filter(c=>c.status!=='Disconnected').forEach(c=>{
-    if(!DB.billing.find(b=>b.clientId===c.id && b.month===month)){
-      const installed = String(c.installed||'');
-      let dueDate = `${month}-${dueDay}`;
-      if(/^\d{4}-\d{2}-\d{2}$/.test(installed) &&
-         iso(new Date(`${installed}T00:00:00`))===installed &&
-         dueDate<=installed){
-        const dayAfterInstallation = new Date(`${installed}T00:00:00`);
-        dayAfterInstallation.setDate(dayAfterInstallation.getDate()+1);
-        dueDate = iso(dayAfterInstallation);
+    const installed = String(c.installed||'');
+    const installationMatch = installed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const hasValidInstallationDate = installationMatch &&
+      iso(new Date(`${installed}T00:00:00`))===installed;
+    const invoiceDueDay = hasValidInstallationDate
+      ? Number(installationMatch[3])
+      : Number(dueDay);
+    const lastDayOfMonth = new Date(billingYear, billingMonth, 0).getDate();
+    const dueDateObject = new Date(
+      billingYear, billingMonth-1, Math.min(invoiceDueDay, lastDayOfMonth)
+    );
+    let dueDate = iso(dueDateObject);
+    if(hasValidInstallationDate && dueDate<=installed){
+      const dayAfterInstallation = new Date(`${installed}T00:00:00`);
+      dayAfterInstallation.setDate(dayAfterInstallation.getDate()+1);
+      dueDate = iso(dayAfterInstallation);
+    }
+    const invoiceId = `INV-${month}-${c.id}`;
+    const existing = DB.billing.find(b=>b.clientId===c.id && b.month===month);
+    if(existing){
+      if(existing.id===invoiceId && existing.dueDate!==dueDate){
+        existing.dueDate = dueDate;
+        updated++;
       }
+    }else{
       DB.billing.push({
-        id:`INV-${month}-${c.id}`, month, clientId:c.id,
+        id:invoiceId, month, clientId:c.id,
         dueDate, amountDue:num(c.rate), remarks:''
       });
       added++;
     }
   });
   save();
-  toast(added ? `Generated ${added} invoice(s)` : 'All invoices already exist');
+  toast(added || updated
+    ? `Generated ${added} invoice(s)${updated?` · updated ${updated} due date(s)`:''}`
+    : 'All invoices already exist');
   render();
 }
 
