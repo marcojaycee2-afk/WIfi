@@ -1192,9 +1192,13 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
   .topbar .btn{min-width:44px;min-height:44px;padding:7px 9px;font-size:12px}
   #btnLogout,#btnBackup,#btnRestore{display:none}
   #btnMenu{
-    display:inline-flex;flex:0 0 44px;width:44px;height:44px;
-    padding:0;font-size:20px;
+    position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));
+    z-index:90;display:inline-flex;width:54px;height:54px;min-width:54px;
+    padding:0;border:1px solid #60a5fa;border-radius:50%;
+    background:var(--accent);color:#fff;font-size:23px;
+    box-shadow:0 5px 18px rgba(0,0,0,.48),0 0 0 3px rgba(59,130,246,.18);
   }
+  #btnMenu:hover{background:var(--accent-hover);border-color:#93c5fd}
   .tabs{
     display:none;top:calc(64px + env(safe-area-inset-top));
     gap:6px;padding:10px;
@@ -4591,6 +4595,7 @@ document.addEventListener('click', async e=>{
   if(menuToggle){
     const menu = document.getElementById('tabs');
     const isOpen = menu.classList.toggle('mobile-open');
+    menuToggle.textContent = isOpen ? '×' : '☰';
     menuToggle.setAttribute('aria-expanded', String(isOpen));
     menuToggle.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
     return;
@@ -4616,6 +4621,7 @@ document.addEventListener('click', async e=>{
   if(tabBtn){
     document.getElementById('tabs').classList.remove('mobile-open');
     const menuToggleButton = document.getElementById('btnMenu');
+    menuToggleButton.textContent = '☰';
     menuToggleButton.setAttribute('aria-expanded','false');
     menuToggleButton.setAttribute('aria-label','Open menu');
     state.mapPlaceClient=false; state.mapPlaceNap=false; state.tab = tabBtn.dataset.tab; state.search=''; render(); return;
