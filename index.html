@@ -4257,6 +4257,23 @@ function deleteRecord(table, id){
 /* =========================================================================
    EVENTS
    ========================================================================= */
+window.addEventListener('storage', e=>{
+  if(e.key!==KEY || !e.newValue || !DB) return;
+  try{
+    const updated = JSON.parse(e.newValue);
+    const collections = ['clients','billing','payments','napBoxes','napPorts','complaints','installs','inventory'];
+    if(!updated || collections.some(key=>!Array.isArray(updated[key])) || !updated.settings){
+      console.warn('Ignored an invalid cross-tab data update');
+      return;
+    }
+    DB = updated;
+    document.getElementById('subBrand').textContent = DB.settings.business || 'My ISP';
+    if(state.tab==='dashboard') render();
+  }catch(error){
+    console.warn('Could not apply a cross-tab data update', error);
+  }
+});
+
 document.addEventListener('click', async e=>{
   const removeTag = e.target.closest('[data-tag-remove]');
   if(removeTag){ removeTag.closest('[data-tag-value]').remove(); return; }
