@@ -7,7 +7,7 @@ self.addEventListener('push', event => {
   }
   event.waitUntil(self.registration.showNotification(message.title || 'NAPBOX reminder', {
     body: message.body || 'There are overdue payments to review.',
-    tag: 'late-payments-daily',
+    tag: message.tag || 'late-payments-daily',
     data: { url: message.url || '/' }
   }));
 });

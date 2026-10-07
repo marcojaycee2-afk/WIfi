@@ -29,7 +29,7 @@ The map works without a token using OpenStreetMap tiles. If `MAPBOX_ACCESS_TOKEN
 The OpenStreetMap fallback requires an internet connection to `tile.openstreetmap.org` and includes OpenStreetMap attribution. Its 3D toggle is available only when Mapbox is configured.
 ## Daily overdue-payment notifications
 
-The Settings page can enable a daily web-push reminder separately on each PC or phone. Notifications arrive even when the dashboard is closed. Push requires a supported browser and HTTPS (localhost works for local setup). The reminder summarizes overdue clients and balances and runs at 8:00 AM in `Asia/Manila` by default.
+The Settings page can enable a daily web-push reminder separately on each PC or phone. Notifications arrive even when the dashboard is closed. Push requires a supported browser and HTTPS (localhost works for local setup). The reminder summarizes every client with an unpaid balance on invoices due today or earlier, split across notifications when needed, and runs at 8:00 AM in `Asia/Manila` by default.
 
 Configure a VAPID key pair on the app server. Generate one with:
 

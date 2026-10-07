@@ -98,18 +98,25 @@ function Get-OverdueSummary($State) {
   }
 
   if ($overdueInvoices -eq 0) { return $null }
-  $lines = @(
-    $clientsWithDebt.Values |
-      Sort-Object -Property Balance -Descending |
-      Select-Object -First 4 |
-      ForEach-Object { '{0} - {1}{2:N2}' -f $_.Name, [string][char]0x20B1, $_.Balance }
-  )
-  if ($clientsWithDebt.Count -gt 4) { $lines += "+$($clientsWithDebt.Count - 4) more client(s)" }
+  $sortedClients = @($clientsWithDebt.Values | Sort-Object -Property Balance -Descending)
   $currency = [string][char]0x20B1
-  $details = "$($clientsWithDebt.Count) client(s) - $currency$($totalBalance.ToString('N2')) outstanding`n$($lines -join "`n")"
+  $partCount = [Math]::Ceiling($sortedClients.Count / 4)
+  $messages = @()
+  for ($part = 0; $part -lt $partCount; $part++) {
+    $lines = @(
+      $sortedClients |
+        Select-Object -Skip ($part * 4) -First 4 |
+        ForEach-Object { '{0} - {1}{2:N2}' -f $_.Name, $currency, $_.Balance }
+    )
+    $details = "$($clientsWithDebt.Count) clients - $currency$($totalBalance.ToString('N2')) outstanding`n$($lines -join "`n")"
+    $messages += @{
+      Title = "$overdueInvoices unpaid invoice(s) due ($($part + 1)/$partCount)"
+      Body = $details
+    }
+  }
   return @{
     Title = "$overdueInvoices unpaid invoice(s) due"
-    Body = $details
+    Messages = $messages
   }
 }
 
@@ -123,8 +130,10 @@ function Invoke-OverdueCheck {
       Write-NotificationLog 'Check completed; no overdue balances.'
       return
     }
-    Show-Toast $summary.Title $summary.Body $config.BaseUrl
-    Write-NotificationLog "Sent reminder: $($summary.Title)."
+    foreach ($message in $summary.Messages) {
+      Show-Toast $message.Title $message.Body $config.BaseUrl
+    }
+    Write-NotificationLog "Sent $($summary.Messages.Count) reminder toast(s): $($summary.Title)."
   } catch {
     Write-NotificationLog "Check failed: $($_.Exception.Message)"
     throw

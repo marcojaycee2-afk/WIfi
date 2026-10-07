@@ -28,7 +28,7 @@ function buildOverdueSummary(state, today){
   let totalBalance = 0;
   for(const invoice of state.billing){
     if(typeof invoice.dueDate!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(invoice.dueDate) ||
-       invoice.dueDate>=today) continue;
+       invoice.dueDate>today) continue;
     const amountDue = Number(invoice.amountDue);
     if(!Number.isFinite(amountDue)) continue;
     const paid = balances.get(`${invoice.clientId}\u0000${invoice.month}`)||0;
@@ -55,14 +55,21 @@ function buildOverdueSummary(state, today){
     minimumFractionDigits:2,
     maximumFractionDigits:2
   })}`;
-  const shown = clients.slice(0,4).map(client=>
-    `${client.name} — ${amount(client.balance)}`
-  );
-  if(clients.length>shown.length) shown.push(`+${clients.length-shown.length} more client(s)`);
+  const lines = clients.map(client=>`${client.name} — ${amount(client.balance)}`);
+  const notifications = [];
+  for(let index=0;index<lines.length;index+=4){
+    const part = notifications.length+1;
+    const totalParts = Math.ceil(lines.length/4);
+    notifications.push({
+      title:`${overdueInvoices} unpaid invoice(s) due (${part}/${totalParts})`,
+      body:`${clients.length} clients · ${amount(totalBalance)} outstanding\n${lines.slice(index,index+4).join('\n')}`
+    });
+  }
 
   return {
-    title:`${overdueInvoices} overdue invoice${overdueInvoices===1?'':'s'}`,
-    body:`${clients.length} client${clients.length===1?'':'s'} · ${amount(totalBalance)} outstanding\n${shown.join('\n')}`,
+    title:`${overdueInvoices} unpaid invoice${overdueInvoices===1?'':'s'} due`,
+    body:`${clients.length} client${clients.length===1?'':'s'} · ${amount(totalBalance)} outstanding\n${lines.join('\n')}`,
+    notifications,
     overdueInvoices,
     overdueClients:clients.length,
     totalBalance:Math.round(totalBalance*100)/100

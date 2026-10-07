@@ -187,21 +187,28 @@ async function sendDailyOverdueNotifications(){
       'SELECT endpoint, subscription FROM push_subscriptions WHERE last_notified_on IS DISTINCT FROM $1::date',
       [today]
     );
-    const payload = JSON.stringify({
-      title: report.title,
-      body: report.body,
-      url: '/'
-    });
     for (const row of subscriptions.rows) {
+      let delivered = true;
       try {
-        await webpush.sendNotification(row.subscription, payload);
-        await pool.query('UPDATE push_subscriptions SET last_notified_on = $1::date, updated_at = now() WHERE endpoint = $2', [today, row.endpoint]);
+        for (let index=0;index<report.notifications.length;index++) {
+          const notification = report.notifications[index];
+          const payload = JSON.stringify({
+            ...notification,
+            url: '/',
+            tag: `late-payments-${today}-${index+1}`
+          });
+          await webpush.sendNotification(row.subscription, payload);
+        }
       } catch (error) {
+        delivered = false;
         if (error.statusCode === 404 || error.statusCode === 410) {
           await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [row.endpoint]);
         } else {
           console.error('Could not send overdue notification:', error.message);
         }
+      }
+      if (delivered) {
+        await pool.query('UPDATE push_subscriptions SET last_notified_on = $1::date, updated_at = now() WHERE endpoint = $2', [today, row.endpoint]);
       }
     }
   } finally {
