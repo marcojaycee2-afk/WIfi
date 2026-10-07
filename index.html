@@ -4078,9 +4078,11 @@ function openForm(table, id, initialValues={}){
         </select>`;
         const showCustomSpeed = selectedPlan===customPlanValue;
         return `<div class="field"><span>${esc(f.l)}${f.req?' *':''}</span>${input}
-          <label class="field" data-custom-speed-field style="display:${showCustomSpeed?'block':'none'}">
-            <span>Custom speed (Mbps)</span>
-            <input name="customMbps" type="number" min="0.01" step="any" value="${esc(customSpeed)}" ${showCustomSpeed?'required':''}>
+          <label class="field custom-speed-field" data-custom-speed-field style="display:${showCustomSpeed?'block':'none'}">
+            <span>Enter custom speed (Mbps)</span>
+            <input name="customMbps" type="number" min="0.01" step="any" inputmode="decimal"
+              placeholder="e.g. 75" value="${esc(customSpeed)}" ${showCustomSpeed?'required':''}>
+            <small class="field-hint">Type the speed in Mbps, for example 75.</small>
           </label>
           ${f.hint?`<small class="field-hint">${esc(f.hint)}</small>`:''}</div>`;
       }
@@ -4985,7 +4987,9 @@ document.addEventListener('change', e=>{
     if(customSpeedField){
       const isCustom = e.target.value==='__custom_plan__';
       customSpeedField.style.display = isCustom ? 'block' : 'none';
-      customSpeedField.querySelector('input').required = isCustom;
+      const speedInput = customSpeedField.querySelector('input');
+      speedInput.required = isCustom;
+      if(isCustom) speedInput.focus();
     }
   }
   if(e.target.name==='plan' && e.target.form?.id==='modalForm'){
