@@ -1173,6 +1173,105 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
   .receipt-paper:before,.receipt-paper:after{display:none!important}
   @page{margin:6mm}
 }
+
+@media(max-width:640px){
+  html,body{width:100%;overflow-x:hidden}
+  body{font-size:14px;min-height:100vh;min-height:100dvh}
+  .topbar{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px 8px;
+    padding:calc(8px + env(safe-area-inset-top)) 10px 8px;
+  }
+  .brand{grid-column:1;grid-row:1;min-width:0;font-size:14px}
+  .save-status{
+    grid-column:2/4;grid-row:1;justify-self:end;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px;
+  }
+  .topbar .btn{
+    grid-row:2;width:100%;min-width:0;min-height:44px;
+    padding:7px 5px;font-size:12px;
+  }
+  #btnLogout{grid-column:1}
+  #btnBackup{grid-column:2}
+  #btnRestore{grid-column:3}
+  .tabs{
+    top:calc(102px + env(safe-area-inset-top));
+    gap:6px;padding:8px 10px;
+    scroll-padding-inline:10px;
+  }
+  .tab{min-height:40px;padding:8px 12px}
+  main{padding:10px}
+  .page-head{gap:8px}
+  .page-head h1{flex:1 0 100%;font-size:20px}
+  .page-head>.btn,.page-head>select{min-height:44px}
+  .page-head>.btn{flex:1 1 auto;padding-inline:10px}
+  .page-head>select{max-width:100%;font-size:16px}
+  .card{padding:11px;margin-bottom:10px;border-radius:12px}
+  .card-head{gap:8px}
+  .card-head h2{min-width:0}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+  .kpi{min-width:0;padding:10px;border-radius:12px}
+  .kpi .lbl{font-size:10px}
+  .kpi .val{font-size:clamp(18px,5.5vw,22px);overflow-wrap:anywhere}
+  .kpi .sub{font-size:10px}
+  .btn,.rcpt-btn{min-height:40px}
+  .btn.sm{min-height:36px}
+  .searchbar{width:100%}
+  .searchbar input{min-width:0;min-height:44px;font-size:16px}
+  .tw{
+    max-width:calc(100vw - 20px);
+    margin-inline:-11px;padding-inline:11px;
+    overscroll-behavior-inline:contain;
+    scrollbar-width:thin;
+  }
+  table{font-size:12px}
+  th{padding:8px}
+  td{padding:9px 8px}
+  .row-actions{flex-wrap:wrap}
+  .backdrop{align-items:flex-end}
+  .modal{
+    width:100%;max-width:none;max-height:90vh;max-height:90dvh;
+    padding:16px 14px calc(14px + env(safe-area-inset-bottom));
+    border-radius:18px 18px 0 0;
+  }
+  .grid2{grid-template-columns:minmax(0,1fr);gap:0}
+  input,select,textarea{min-height:44px;font-size:16px}
+  .tag-editor input{min-height:36px}
+  .modal-actions{gap:8px}
+  .modal-actions .btn{min-height:44px;padding-inline:8px}
+  .subtabs{display:flex;width:100%;overflow-x:auto}
+  .subtab{flex:1 0 auto;min-height:42px;padding-inline:10px}
+  .map-bar{gap:8px}
+  .map-bar #mapSearchInput{flex:1 1 100%;min-width:0;min-height:44px}
+  .map-bar .btn{flex:1 1 auto;min-height:44px}
+  #map{height:58vh;height:58svh;min-height:340px}
+  .map-overlay{max-width:min(190px,calc(100% - 20px));font-size:10px}
+  .map-help{max-width:min(175px,calc(100% - 20px));font-size:10px}
+  .map-context-menu{max-width:calc(100% - 20px)}
+  .map-context-menu .btn{min-height:42px}
+  .receipt-backdrop{padding:10px 8px calc(20px + env(safe-area-inset-bottom))}
+  .receipt-actions{flex-wrap:wrap}
+  .receipt-actions .btn{flex:1 1 calc(50% - 8px);min-height:42px;padding-inline:6px}
+  #toast{bottom:calc(16px + env(safe-area-inset-bottom));max-width:calc(100vw - 24px)}
+}
+
+@media(max-width:380px){
+  .topbar{gap:5px;padding-inline:8px}
+  .save-status{font-size:9px}
+  .tab{padding-inline:10px;font-size:12px}
+  .kpi{padding:8px}
+  .kpi .val{font-size:18px}
+  .card{padding:10px}
+  .tw{margin-inline:-10px;padding-inline:10px}
+  .modal-actions{flex-direction:column-reverse}
+  .modal-actions .btn{width:100%;flex:auto}
+}
+
+@media(max-width:640px) and (orientation:landscape) and (max-height:500px){
+  .modal{max-height:82vh;max-height:82dvh}
+  #map{height:65vh;height:65svh;min-height:220px}
+}
 </style>
 </head>
 <body>
@@ -1357,6 +1456,14 @@ const monthLabel = m => {
   const [y,mo] = m.split('-');
   return new Date(y, mo-1, 1).toLocaleDateString('en-PH',{month:'long', year:'numeric'});
 };
+function dateLabel(value){
+  const match = String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!match) return value || '—';
+  const [year,month,day] = match.slice(1).map(Number);
+  const date = new Date(year,month-1,day);
+  if(date.getFullYear()!==year || date.getMonth()!==month-1 || date.getDate()!==day) return value;
+  return date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
 const daysAgo = (a,b) => Math.floor((new Date(b) - new Date(a)) / 86400000);
 function isAtLeastMonthsOverdue(dueDate, months, referenceDate=todayISO()){
   const match = String(dueDate||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -2024,7 +2131,7 @@ function pageDashboard(){
       <tbody>${overdue.map(r=>`<tr>
         <td>${esc(r.clientName)}</td>
         <td class="muted">${esc(r.month)}</td>
-        <td class="muted">${esc(r.dueDate)}</td>
+        <td class="muted">${esc(dateLabel(r.dueDate))}</td>
         <td class="right">${peso(r.balance)}</td>
         <td><span class="badge ${agingClass(r.aging)}">${r.aging} · ${r.daysOverdue}d</span></td>
       </tr>`).join('')}</tbody>
@@ -2040,7 +2147,7 @@ function pageDashboard(){
       <tbody>${longOverdue.map(r=>`<tr>
         <td>${esc(r.clientName)}<div class="tiny muted">${esc(r.clientId)}</div></td>
         <td class="muted">${esc(r.month)}</td>
-        <td class="muted">${esc(r.dueDate)}</td>
+        <td class="muted">${esc(dateLabel(r.dueDate))}</td>
         <td class="right"><strong>${peso(r.balance)}</strong></td>
         <td><span class="badge b-red">${r.daysOverdue} days</span></td>
         <td><button class="btn sm primary" data-act="payInvoice" data-id="${esc(r.id)}">Record Payment</button></td>
@@ -2072,7 +2179,7 @@ function pageClients(){
       <td>${esc(c.contact||'')}</td>
       <td>${esc(c.plan||'')}<div class="tiny muted">${peso(c.rate)}/mo</div></td>
       <td>${c.napId?`${esc(c.napId)}<div class="tiny muted">port ${esc(c.port)}</div>`:'<span class="muted">—</span>'}</td>
-      <td class="right">${bal>0?`<span class="badge b-red">${peso(bal)}</span>`:'<span class="muted small">—</span>'}</td>
+      <td class="right">${bal>0?`<span class="badge b-red">${peso(bal)}</span>`:`<span class="muted small">${peso(0)}</span>`}</td>
       <td><span class="badge ${stCls}">${esc(c.status)}</span></td>
       <td class="right"><div class="row-actions">
         <button class="btn sm" data-act="connectClient" data-id="${esc(c.id)}">${c.napId?'Change Port':'Connect'}</button>
@@ -2118,10 +2225,10 @@ function pageBilling(){
     const stCls = r.status==='Paid'?'b-green':r.status==='Partial'?'b-amber':'b-red';
     return `<tr>
       <td>${esc(r.clientName)}<div class="tiny muted">${esc(r.clientId)}</div></td>
-      <td class="muted">${esc(r.dueDate)}</td>
+      <td class="muted">${esc(dateLabel(r.dueDate))}</td>
       <td class="right">${peso(r.amountDue)}</td>
       <td class="right">${peso(r.paid)}</td>
-      <td class="right"><strong>${r.balance>0?peso(r.balance):'—'}</strong></td>
+      <td class="right"><strong>${peso(Math.max(0,r.balance))}</strong></td>
       <td><span class="badge ${stCls}">${r.status}</span></td>
       <td><span class="badge ${agingClass(r.aging)}">${r.aging}</span></td>
       <td class="right">${r.daysOverdue>0?`<span class="small muted">${r.daysOverdue}d</span>`:''}</td>
@@ -2277,7 +2384,7 @@ function pagePayments(){
     const c = DB.clients.find(x=>x.id===p.clientId);
     return `<tr>
       <td><strong>${esc(p.receiptNo||p.id)}</strong><div class="tiny muted">${esc(p.id)}</div></td>
-      <td>${esc(p.date)}</td>
+      <td>${esc(dateLabel(p.date))}</td>
       <td>${esc(c?c.name:p.clientId)}</td>
       <td class="muted">${esc(p.month)}</td>
       <td class="right"><strong>${peso(p.amount)}</strong></td>
@@ -3292,12 +3399,12 @@ function pageComplaints(){
       : t.status==='In Progress' ? 'b-amber' : 'b-red';
     return `<tr>
       <td><strong>${esc(t.id)}</strong></td>
-      <td>${esc(t.date)}</td>
+      <td>${esc(dateLabel(t.date))}</td>
       <td>${esc(c?c.name:t.clientId)}</td>
       <td>${esc(t.category||'')}<div class="tiny muted wrap">${esc(t.description||'')}</div></td>
       <td>${esc(t.tech||'—')}</td>
       <td><span class="badge ${stCls}">${esc(t.status)}</span></td>
-      <td>${esc(t.fixedDate||'—')}</td>
+      <td>${esc(dateLabel(t.fixedDate))}</td>
       <td class="right"><div class="row-actions">
         <button class="btn sm" data-act="edit" data-table="complaints" data-id="${esc(t.id)}">Edit</button>
         <button class="btn sm danger" data-act="del" data-table="complaints" data-id="${esc(t.id)}">✕</button>
@@ -3328,14 +3435,14 @@ function pageInstalls(){
       : r.status==='Cancelled' ? 'b-gray' : 'b-amber';
     return `<tr>
       <td><strong>${esc(r.id)}</strong></td>
-      <td>${esc(r.date)}</td>
+      <td>${esc(dateLabel(r.date))}</td>
       <td><span class="badge b-gray">${esc(r.type)}</span></td>
       <td class="wrap">${esc(r.name)}<div class="tiny muted">${esc(r.contact||'')}</div></td>
       <td class="wrap">${esc(r.address||'')}</td>
       <td>${esc(r.plan||'—')}</td>
       <td>${esc(r.napId||'—')}</td>
       <td><span class="badge ${stCls}">${esc(r.status)}</span></td>
-      <td>${esc(r.schedule||'—')}</td>
+      <td>${esc(dateLabel(r.schedule))}</td>
       <td class="right"><div class="row-actions">
         <button class="btn sm" data-act="edit" data-table="installs" data-id="${esc(r.id)}">Edit</button>
         <button class="btn sm danger" data-act="del" data-table="installs" data-id="${esc(r.id)}">✕</button>
@@ -3558,8 +3665,7 @@ function openReceipt(paymentId){
   const s = DB.settings;
 
   const initial = (s.business||'ISP').trim().charAt(0).toUpperCase();
-  const dt = p.date ? new Date(p.date) : new Date();
-  const dateStr = iso(dt);
+  const dateStr = dateLabel(p.date);
   const timeStr = p.createdAt ? new Date(p.createdAt).toTimeString().slice(0,5) : nowTime();
 
   // amounts
@@ -3654,7 +3760,7 @@ function receiptPlainText(){
     'OFFICIAL RECEIPT',
     dline,
     `Receipt No: ${p.receiptNo}`,
-    `Date: ${p.date}`,
+    `Date: ${dateLabel(p.date)}`,
     `Time: ${nowTime()}`,
     line,
     'RECEIVED FROM',
@@ -3698,7 +3804,7 @@ async function shareReceipt(){
   if(!p) return;
   const c = DB.clients.find(x=>x.id===p.clientId) || {};
   const s = DB.settings;
-  const text = `*${s.business}*\nOfficial Receipt ${p.receiptNo}\n\nReceived from: ${c.name||p.clientId}\nAmount: ${peso(p.amount)}\nFor: ${monthLabel(p.month)}\nMethod: ${p.method}\n${p.ref?'Ref: '+p.ref+'\n':''}Date: ${p.date}\n\nThank you!`;
+  const text = `*${s.business}*\nOfficial Receipt ${p.receiptNo}\n\nReceived from: ${c.name||p.clientId}\nAmount: ${peso(p.amount)}\nFor: ${monthLabel(p.month)}\nMethod: ${p.method}\n${p.ref?'Ref: '+p.ref+'\n':''}Date: ${dateLabel(p.date)}\n\nThank you!`;
 
   if(navigator.share){
     try{
