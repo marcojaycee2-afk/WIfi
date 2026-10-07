@@ -40,3 +40,29 @@ npx web-push generate-vapid-keys
 Set the generated `publicKey` as `VAPID_PUBLIC_KEY`, the `privateKey` as `VAPID_PRIVATE_KEY`, and set `VAPID_SUBJECT` to a contact URI such as `mailto:admin@your-domain.example`. For Docker Compose, put these values in the ignored local `.env` file; for hosted deployments, set them as secret environment variables. Never publish the private key. `APP_TIMEZONE` controls the schedule timezone (default `Asia/Manila`), and `NOTIFICATION_CRON` can override the schedule (default `0 8 * * *`). Rebuild/restart the app after changing these settings, then sign in and choose **Settings → Enable on this device** on every computer where reminders are wanted.
 
 The app stores push subscriptions in PostgreSQL, independently of exported app-data backups. Keep one running app instance for the daily scheduler; the included Compose setup does this. If the app is stopped at the scheduled time, that day's reminder is skipped. The push service subscription is removed automatically when a browser reports it has expired.
+
+## Windows toast notifications
+
+For reminders delivered by Windows itself, use the optional PowerShell scheduled task instead of browser push. Keep the NAPBOX app running and reachable from this PC; Windows Task Scheduler checks it daily at the configured **Windows local time** (8:00 AM by default). The task runs in your Windows account, so you need to be signed in to see the toast. A check missed while the PC sleeps runs when it becomes available again.
+
+Open PowerShell in the project folder and run:
+
+```powershell
+.\windows-overdue-toast.ps1 -Action Setup -BaseUrl http://localhost:3000 -Username telecomadmin -Time 08:00
+```
+
+Use your actual admin username if it differs from `telecomadmin`. Setup installs the BurntToast PowerShell module for your account if needed, prompts for the NAPBOX password, and protects it with Windows DPAPI for that Windows user. It registers a daily task and copies its script/configuration under `%LOCALAPPDATA%\NAPBOX\WindowsNotifications`. Do not share the DPAPI-protected password file; it is intended to be usable only by your Windows account on this PC.
+
+Send a sample toast without checking invoices:
+
+```powershell
+.\windows-overdue-toast.ps1 -Action Test
+```
+
+Check for actual overdue invoices immediately:
+
+```powershell
+.\windows-overdue-toast.ps1 -Action CheckNow
+```
+
+Logs are written under `%LOCALAPPDATA%\NAPBOX\WindowsNotifications\notifications.log`. Remove the scheduled task with `.\windows-overdue-toast.ps1 -Action Remove`. Windows toast notifications may display customer names and balances on the lock screen; adjust Windows notification privacy if needed.
