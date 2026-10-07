@@ -1633,6 +1633,34 @@ async function enablePushNotifications(){
   }
 }
 
+async function testBrowserNotification(){
+  try{
+    if(!('Notification' in window)){
+      throw new Error('This browser does not support notifications.');
+    }
+    if(!window.isSecureContext){
+      throw new Error('Notifications require HTTPS (or localhost).');
+    }
+    let permission=Notification.permission;
+    if(permission==='default') permission=await Notification.requestPermission();
+    if(permission!=='granted'){
+      throw new Error('Notification permission is blocked. Allow notifications for this site in your browser settings.');
+    }
+    const notification=new Notification('NAPBOX notification test',{
+      body:'Notifications are working on this device. Click here to return to NAPBOX.',
+      tag:'napbox-notification-test'
+    });
+    notification.onclick=()=>{
+      window.focus();
+      notification.close();
+    };
+    toast('Test notification sent');
+  }catch(error){
+    console.error('Could not show test notification',error);
+    toast(error.message);
+  }
+}
+
 async function disablePushNotifications(){
   try{
     const registration=await navigator.serviceWorker.getRegistration('/');
@@ -3748,8 +3776,9 @@ function pageSettings(){
     </div>
     <button class="btn primary block" data-act="enablePushNotifications">Enable on this device</button>
     <button class="btn block" data-act="disablePushNotifications" style="margin-top:8px" hidden>Turn off on this device</button>
+    <button class="btn block" data-act="testBrowserNotification" style="margin-top:8px">Test notification now</button>
     <div class="tiny muted" style="margin-top:10px">
-      Sends a daily reminder at 8:00 AM Asia/Manila when unpaid invoices are overdue. The alert includes client names and balances, which may be visible on your lock screen. Requires browser notification permission and HTTPS (localhost is supported).
+      Sends a daily reminder at 8:00 AM Asia/Manila when unpaid invoices are overdue. The alert includes client names and balances, which may be visible on your lock screen. Requires browser notification permission and HTTPS (localhost is supported). The test button sends an immediate browser notification to this device.
     </div>
   </div>
 
@@ -5039,6 +5068,10 @@ document.addEventListener('click', async e=>{
   }
   if(a==='enablePushNotifications'){
     await enablePushNotifications();
+    return;
+  }
+  if(a==='testBrowserNotification'){
+    await testBrowserNotification();
     return;
   }
   if(a==='disablePushNotifications'){
