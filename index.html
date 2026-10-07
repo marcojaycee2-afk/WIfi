@@ -1205,16 +1205,25 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
     scroll-padding-inline:10px;
   }
   .tabs.mobile-open{
-    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-    max-height:calc(100dvh - 70px - env(safe-area-inset-top));
-    overflow-y:auto;overscroll-behavior:contain;
-    border:1px solid var(--line);border-radius:0 0 14px 14px;
-    box-shadow:0 10px 22px rgba(0,0,0,.38);
+    position:fixed;inset:0;top:0;z-index:85;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:8px;width:100%;height:100vh;height:100dvh;
+    max-height:none;overflow-y:auto;overscroll-behavior:contain;
+    padding:calc(24px + env(safe-area-inset-top)) 24px calc(88px + env(safe-area-inset-bottom));
+    background:rgba(7,12,23,.72);backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    border:0;border-radius:0;box-shadow:none;
   }
   .tab{min-height:40px;padding:8px 12px}
-  .tabs .tab{justify-content:flex-start;text-align:left}
+  .tabs .tab{
+    justify-content:flex-start;text-align:left;
+    width:min(100%,420px);min-height:48px;padding:12px 16px;
+    background:rgba(20,29,49,.94);border-color:rgba(136,150,176,.25);
+    box-shadow:0 3px 12px rgba(0,0,0,.22);
+  }
+  .tabs .tab.active{background:var(--accent);border-color:var(--accent)}
   .tabs.mobile-open .mobile-menu-action{
-    display:flex;grid-column:1/-1;justify-content:center;
+    display:flex;justify-content:center;
     border-color:#7f1d1d;color:#fca5a5;
   }
   main{padding:10px}
@@ -1239,8 +1248,25 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
     max-width:calc(100vw - 20px);
     margin-inline:-11px;padding-inline:11px;
     overscroll-behavior-inline:contain;
-    scrollbar-width:thin;
+    scrollbar-width:auto;
+    scrollbar-color:#64748b #1a2438;
+    touch-action:pan-x pan-y;
   }
+  .tw::-webkit-scrollbar{height:10px}
+  .tw::-webkit-scrollbar-track{background:#1a2438;border-radius:999px}
+  .tw::-webkit-scrollbar-thumb{background:#64748b;border:2px solid #1a2438;border-radius:999px}
+  .table-scroll-controls{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    margin:7px 0 2px;color:var(--muted);font-size:11px;
+  }
+  .table-scroll-controls[hidden]{display:none}
+  .table-scroll-controls button{
+    min-width:40px;min-height:36px;padding:4px 10px;
+    border:1px solid var(--line-2);border-radius:8px;
+    background:var(--surface-2);color:var(--ink);font:inherit;font-size:17px;
+    cursor:pointer;touch-action:manipulation;
+  }
+  .table-scroll-controls button:disabled{opacity:.38;cursor:default}
   table{font-size:12px}
   th{padding:8px}
   td{padding:9px 8px}
@@ -2044,9 +2070,44 @@ function render(){
     installs: pageInstalls, inventory: pageInventory, settings: pageSettings
   };
   document.getElementById('view').innerHTML = PAGES[state.tab]();
+  updateTableScrollControls();
   window.scrollTo({top:0, behavior:'instant'});
   if(state.tab==='naps' && state.napView==='map') setTimeout(initMap, 60);
 }
+
+function updateTableScrollControls(){
+  const isMobile = window.matchMedia('(max-width:640px)').matches;
+  document.querySelectorAll('#view .tw').forEach(wrapper=>{
+    let controls = wrapper.nextElementSibling;
+    if(controls && !controls.classList.contains('table-scroll-controls')) controls = null;
+    if(!isMobile || wrapper.scrollWidth<=wrapper.clientWidth+1){
+      if(controls) controls.remove();
+      return;
+    }
+    if(!controls){
+      controls = document.createElement('div');
+      controls.className = 'table-scroll-controls';
+      controls.innerHTML = `
+        <button type="button" data-table-scroll="-1" aria-label="Scroll table left">‹</button>
+        <span>Swipe sideways to see more columns</span>
+        <button type="button" data-table-scroll="1" aria-label="Scroll table right">›</button>`;
+      wrapper.after(controls);
+    }
+    const syncButtons = ()=>{
+      const left = controls.querySelector('[data-table-scroll="-1"]');
+      const right = controls.querySelector('[data-table-scroll="1"]');
+      left.disabled = wrapper.scrollLeft<=1;
+      right.disabled = wrapper.scrollLeft+wrapper.clientWidth>=wrapper.scrollWidth-1;
+    };
+    if(!controls._scrollSyncBound){
+      wrapper.addEventListener('scroll',syncButtons,{passive:true});
+      controls._scrollSyncBound = true;
+    }
+    syncButtons();
+  });
+}
+
+window.addEventListener('resize',updateTableScrollControls,{passive:true});
 
 /* ------------------------------ dashboard ------------------------------ */
 function pageDashboard(){
@@ -4591,6 +4652,19 @@ window.addEventListener('storage', e=>{
 });
 
 document.addEventListener('click', async e=>{
+  const tableScrollButton = e.target.closest('[data-table-scroll]');
+  if(tableScrollButton){
+    const controls = tableScrollButton.closest('.table-scroll-controls');
+    const wrapper = controls && controls.previousElementSibling;
+    if(wrapper && wrapper.classList.contains('tw')){
+      wrapper.scrollBy({
+        left:Number(tableScrollButton.dataset.tableScroll)*Math.max(160,wrapper.clientWidth*0.75),
+        behavior:'smooth'
+      });
+    }
+    return;
+  }
+
   const menuToggle = e.target.closest('#btnMenu');
   if(menuToggle){
     const menu = document.getElementById('tabs');
@@ -4598,6 +4672,16 @@ document.addEventListener('click', async e=>{
     menuToggle.textContent = isOpen ? '×' : '☰';
     menuToggle.setAttribute('aria-expanded', String(isOpen));
     menuToggle.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
+    return;
+  }
+
+  const mobileMenu = document.getElementById('tabs');
+  if(e.target===mobileMenu && mobileMenu.classList.contains('mobile-open')){
+    mobileMenu.classList.remove('mobile-open');
+    const menuToggleButton = document.getElementById('btnMenu');
+    menuToggleButton.textContent = '☰';
+    menuToggleButton.setAttribute('aria-expanded','false');
+    menuToggleButton.setAttribute('aria-label','Open menu');
     return;
   }
 
@@ -4881,6 +4965,16 @@ document.getElementById('receiptBackdrop').addEventListener('click', e=>{
   if(e.target.id==='receiptBackdrop') closeReceipt();
 });
 document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    const menu = document.getElementById('tabs');
+    if(menu.classList.contains('mobile-open')){
+      menu.classList.remove('mobile-open');
+      const menuToggleButton = document.getElementById('btnMenu');
+      menuToggleButton.textContent = '☰';
+      menuToggleButton.setAttribute('aria-expanded','false');
+      menuToggleButton.setAttribute('aria-label','Open menu');
+    }
+  }
   if(e.key==='Enter' && e.target.id==='mapSearchInput'){
     e.preventDefault();
     searchMapLocation();
