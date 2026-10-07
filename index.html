@@ -1358,6 +1358,17 @@ const monthLabel = m => {
   return new Date(y, mo-1, 1).toLocaleDateString('en-PH',{month:'long', year:'numeric'});
 };
 const daysAgo = (a,b) => Math.floor((new Date(b) - new Date(a)) / 86400000);
+function isAtLeastMonthsOverdue(dueDate, months, referenceDate=todayISO()){
+  const match = String(dueDate||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!match || !Number.isInteger(months) || months<0) return false;
+  const [year, month, day] = match.slice(1).map(Number);
+  const due = new Date(year, month-1, day);
+  if(iso(due)!==dueDate) return false;
+  due.setDate(1);
+  due.setMonth(due.getMonth()+months);
+  due.setDate(Math.min(day, new Date(due.getFullYear(), due.getMonth()+1, 0).getDate()));
+  return iso(due)<=referenceDate;
+}
 const uid = () => Math.random().toString(36).slice(2,9);
 const PLAN_LABELS = {
   '10mbps':'10 Mbps', '15mbps':'30 Mbps', '20mbps':'20 Mbps',
@@ -1938,6 +1949,9 @@ function pageDashboard(){
 
   const overdue = rows.filter(r=>r.balance>0 && r.daysOverdue>0)
     .sort((a,b)=>b.daysOverdue-a.daysOverdue).slice(0,10);
+  const longOverdue = rows.filter(r=>
+    r.balance>0 && r.daysOverdue>0 && isAtLeastMonthsOverdue(r.dueDate, 2)
+  ).sort((a,b)=>b.daysOverdue-a.daysOverdue);
 
   const openTickets = DB.complaints.filter(c=>c.status!=='Resolved' && c.status!=='Closed').length;
   const pendingInstalls = DB.installs.filter(r=>r.status!=='Completed' && r.status!=='Cancelled').length;
@@ -2014,6 +2028,23 @@ function pageDashboard(){
         <td><span class="badge ${agingClass(r.aging)}">${r.aging} · ${r.daysOverdue}d</span></td>
       </tr>`).join('')}</tbody>
     </table></div>` : `<div class="empty"><div class="big">✅</div>Nothing overdue.</div>`}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>2+ Months Overdue</h2>
+      <span class="small muted">${longOverdue.length} unpaid invoice(s)</span></div>
+    ${longOverdue.length ? `
+    <div class="tw"><table>
+      <thead><tr><th>Client</th><th>Billing Month</th><th>Due</th><th class="right">Balance</th><th>Overdue</th><th></th></tr></thead>
+      <tbody>${longOverdue.map(r=>`<tr>
+        <td>${esc(r.clientName)}<div class="tiny muted">${esc(r.clientId)}</div></td>
+        <td class="muted">${esc(r.month)}</td>
+        <td class="muted">${esc(r.dueDate)}</td>
+        <td class="right"><strong>${peso(r.balance)}</strong></td>
+        <td><span class="badge b-red">${r.daysOverdue} days</span></td>
+        <td><button class="btn sm primary" data-act="payInvoice" data-id="${esc(r.id)}">Record Payment</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>` : `<div class="empty">No unpaid invoices are at least two months overdue.</div>`}
   </div>
 
   <div class="card">
@@ -2150,6 +2181,9 @@ function openInvoicePayment(invoiceId){
     <p class="muted">${esc(current.clientName)} <span class="tiny">(${esc(current.clientId)})</span><br>
       ${esc(monthLabel(invoice.month))} · Balance ${peso(balance)}</p>
     <form id="invoicePaymentForm">
+      <label class="field"><span>Payment Date</span>
+        <input name="date" type="date" value="${todayISO()}" required>
+      </label>
       <label class="field"><span>Amount Paid (₱)</span>
         <input name="amount" type="number" min="0.01" max="${balance.toFixed(2)}" step="0.01" value="${balance.toFixed(2)}" required>
       </label>
@@ -2189,10 +2223,17 @@ function openInvoicePayment(invoiceId){
     }
     const submit = form.querySelector('[type="submit"]');
     submit.disabled = true;
+    const paymentDate = form.elements.namedItem('date').value;
+    if(!paymentDate || !Number.isFinite(new Date(`${paymentDate}T00:00:00`).getTime()) ||
+       iso(new Date(`${paymentDate}T00:00:00`))!==paymentDate){
+      toast('Choose a valid payment date');
+      submit.disabled = false;
+      return;
+    }
     const payment = {
       id:nextId('P', DB.payments),
       receiptNo:nextReceiptNo(),
-      date:todayISO(),
+      date:paymentDate,
       createdAt:new Date().toISOString(),
       clientId:invoice.clientId,
       month:invoice.month,
@@ -4313,9 +4354,18 @@ async function generateInvoices(month){
   let added = 0;
   DB.clients.filter(c=>c.status!=='Disconnected').forEach(c=>{
     if(!DB.billing.find(b=>b.clientId===c.id && b.month===month)){
+      const installed = String(c.installed||'');
+      let dueDate = `${month}-${dueDay}`;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(installed) &&
+         iso(new Date(`${installed}T00:00:00`))===installed &&
+         dueDate<=installed){
+        const dayAfterInstallation = new Date(`${installed}T00:00:00`);
+        dayAfterInstallation.setDate(dayAfterInstallation.getDate()+1);
+        dueDate = iso(dayAfterInstallation);
+      }
       DB.billing.push({
         id:`INV-${month}-${c.id}`, month, clientId:c.id,
-        dueDate:`${month}-${dueDay}`, amountDue:num(c.rate), remarks:''
+        dueDate, amountDue:num(c.rate), remarks:''
       });
       added++;
     }
