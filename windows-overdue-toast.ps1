@@ -3,7 +3,7 @@ param(
   [string]$Action = 'Setup',
   [string]$BaseUrl = 'http://localhost:3000',
   [string]$Username = 'telecomadmin',
-  [string]$Time = '08:00'
+  [string]$Time = '06:00'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,16 +17,42 @@ function Write-NotificationLog([string]$Message) {
   Add-Content -LiteralPath $logPath -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $Message"
 }
 
-function Show-Toast([string]$Title, [string]$Body) {
+function Show-Toast {
+  param(
+    [string]$Title,
+    [string]$Body,
+    [string]$Url
+  )
   Import-Module BurntToast
-  New-BurntToastNotification -Text @($Title, $Body) | Out-Null
+  $children = @(
+    New-BTText -Text $Title
+    New-BTText -Text $Body
+  )
+  $binding = New-BTBinding -Children $children
+  $visual = New-BTVisual -BindingGeneric $binding
+  $content = New-BTContent -Visual $visual -ActivationType Protocol -Launch $Url
+  Submit-BTNotification -Content $content
+}
+
+function Get-SafeWebsiteUrl([string]$Url) {
+  $parsedUrl = $null
+  if (-not [uri]::TryCreate($Url, [System.UriKind]::Absolute, [ref]$parsedUrl) -or
+      $parsedUrl.UserInfo -or
+      ($parsedUrl.Scheme -ne 'https' -and
+       -not ($parsedUrl.Scheme -eq 'http' -and
+         ($parsedUrl.Host -eq 'localhost' -or $parsedUrl.Host -eq '127.0.0.1' -or $parsedUrl.Host -eq '::1')))) {
+    throw 'The website URL must use HTTPS, or HTTP on localhost/127.0.0.1.'
+  }
+  $parsedUrl.AbsoluteUri.TrimEnd('/')
 }
 
 function Get-SavedConfig {
   if (-not (Test-Path -LiteralPath $configPath) -or -not (Test-Path -LiteralPath $passwordPath)) {
     throw 'Notification setup is incomplete. Run this script with -Action Setup first.'
   }
-  Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+  $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+  $config.BaseUrl = Get-SafeWebsiteUrl $config.BaseUrl
+  $config
 }
 
 function Get-ApplicationState($Config) {
@@ -56,7 +82,7 @@ function Get-OverdueSummary($State) {
   $overdueInvoices = 0
   $totalBalance = 0.0
   foreach ($invoice in $State.billing) {
-    if ($invoice.dueDate -notmatch '^\d{4}-\d{2}-\d{2}$' -or $invoice.dueDate -ge $today) { continue }
+    if ($invoice.dueDate -notmatch '^\d{4}-\d{2}-\d{2}$' -or $invoice.dueDate -gt $today) { continue }
     $key = "$($invoice.clientId)|$($invoice.month)"
     $paid = if ($paymentsByInvoice.ContainsKey($key)) { $paymentsByInvoice[$key] } else { 0.0 }
     $balance = [Math]::Max(0, [Math]::Round(([double]$invoice.amountDue - $paid), 2))
@@ -82,7 +108,7 @@ function Get-OverdueSummary($State) {
   $currency = [string][char]0x20B1
   $details = "$($clientsWithDebt.Count) client(s) - $currency$($totalBalance.ToString('N2')) outstanding`n$($lines -join "`n")"
   return @{
-    Title = "$overdueInvoices overdue invoice(s)"
+    Title = "$overdueInvoices unpaid invoice(s) due"
     Body = $details
   }
 }
@@ -97,7 +123,7 @@ function Invoke-OverdueCheck {
       Write-NotificationLog 'Check completed; no overdue balances.'
       return
     }
-    Show-Toast $summary.Title $summary.Body
+    Show-Toast $summary.Title $summary.Body $config.BaseUrl
     Write-NotificationLog "Sent reminder: $($summary.Title)."
   } catch {
     Write-NotificationLog "Check failed: $($_.Exception.Message)"
@@ -107,10 +133,7 @@ function Invoke-OverdueCheck {
 
 switch ($Action) {
   'Setup' {
-    if ($BaseUrl -notmatch '^https://|^http://localhost(?::\d+)?/?$|^http://127\.0\.0\.1(?::\d+)?/?$') {
-      throw 'Use an HTTPS URL, or localhost/127.0.0.1 for local testing.'
-    }
-    $BaseUrl = $BaseUrl.TrimEnd('/')
+    $BaseUrl = Get-SafeWebsiteUrl $BaseUrl
     $parsedTime = [datetime]::MinValue
     if (-not [datetime]::TryParseExact($Time, 'HH:mm', [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$parsedTime)) {
       throw 'Time must be in 24-hour HH:mm format, for example 08:00.'
@@ -139,16 +162,20 @@ switch ($Action) {
     $arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`" -Action Run"
     $taskAction = New-ScheduledTaskAction -Execute $powerShellPath -Argument $arguments
     $taskTrigger = New-ScheduledTaskTrigger -Daily -At $parsedTime
+    $taskTrigger.Repetition = (New-ScheduledTaskTrigger -Once -At $parsedTime `
+      -RepetitionInterval (New-TimeSpan -Hours 6) `
+      -RepetitionDuration (New-TimeSpan -Days 1)).Repetition
     $taskPrincipal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
     $taskSettings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 5)
     Register-ScheduledTask -TaskName $taskName -Action $taskAction -Trigger $taskTrigger `
       -Principal $taskPrincipal -Settings $taskSettings -Description 'Checks NAPBOX for overdue payments and shows a Windows notification.' -Force | Out-Null
-    Write-Host "Scheduled daily overdue-payment reminders at $Time (Windows local time)."
+    Write-Host "Scheduled unpaid-balance reminders every 6 hours, starting at $Time (Windows local time)."
     Write-Host 'Setup succeeded. Run -Action Test to send a sample toast, or -Action CheckNow to check for actual overdue bills now.'
   }
   'Test' {
     if (-not (Get-Module -ListAvailable -Name BurntToast)) { throw 'BurntToast is not installed. Run this script with -Action Setup first.' }
-    Show-Toast 'NAPBOX notification test' 'Windows notifications are working on this PC.'
+    $testUrl = if (Test-Path -LiteralPath $configPath) { (Get-SavedConfig).BaseUrl } else { Get-SafeWebsiteUrl $BaseUrl }
+    Show-Toast 'NAPBOX notification test' 'Click this notification to open NAPBOX.' $testUrl
     Write-Host 'Test notification sent. Check Windows Notifications / Notification Center.'
   }
   'Run' { Invoke-OverdueCheck }

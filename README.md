@@ -43,17 +43,17 @@ The app stores push subscriptions in PostgreSQL, independently of exported app-d
 
 ## Windows toast notifications
 
-For reminders delivered by Windows itself, use the optional PowerShell scheduled task instead of browser push. Keep the NAPBOX app running and reachable from this PC; Windows Task Scheduler checks it daily at the configured **Windows local time** (8:00 AM by default). The task runs in your Windows account, so you need to be signed in to see the toast. A check missed while the PC sleeps runs when it becomes available again.
+For reminders delivered by Windows itself, use the optional PowerShell scheduled task instead of browser push. Keep the NAPBOX app running and reachable from this PC; Windows Task Scheduler checks every six hours, starting at the configured **Windows local time** (6:00 AM by default: 6 AM, noon, 6 PM, and midnight). Each alert lists clients with any unpaid balance on invoices due today or earlier, including partial payments. The task runs in your Windows account, so you need to be signed in to see the toast. A check missed while the PC sleeps runs when it becomes available again.
 
 Open PowerShell in the project folder and run:
 
 ```powershell
-.\windows-overdue-toast.ps1 -Action Setup -BaseUrl http://localhost:3000 -Username telecomadmin -Time 08:00
+.\windows-overdue-toast.ps1 -Action Setup -BaseUrl http://localhost:3000 -Username telecomadmin -Time 06:00
 ```
 
-Use your actual admin username if it differs from `telecomadmin`. Setup installs the BurntToast PowerShell module for your account if needed, prompts for the NAPBOX password, and protects it with Windows DPAPI for that Windows user. It registers a daily task and copies its script/configuration under `%LOCALAPPDATA%\NAPBOX\WindowsNotifications`. Do not share the DPAPI-protected password file; it is intended to be usable only by your Windows account on this PC.
+Use your actual admin username if it differs from `telecomadmin`. The `-Time` value sets the start time for the six-hour cycle. Setup installs the BurntToast PowerShell module for your account if needed, prompts for the NAPBOX password, and protects it with Windows DPAPI for that Windows user. It registers a task that repeats every six hours and copies its script/configuration under `%LOCALAPPDATA%\NAPBOX\WindowsNotifications`. Run Setup again to update an existing task. Do not share the DPAPI-protected password file; it is intended to be usable only by your Windows account on this PC.
 
-Send a sample toast without checking invoices:
+Send a sample toast without checking invoices. Clicking the test or payment reminder toast opens the configured NAPBOX website in your default browser:
 
 ```powershell
 .\windows-overdue-toast.ps1 -Action Test
