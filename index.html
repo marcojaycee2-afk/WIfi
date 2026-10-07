@@ -160,8 +160,6 @@ td strong{color:var(--ink)}
 .field{display:block;margin-bottom:11px}
 .field>span{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
 .field-hint{display:block;margin-top:4px;color:var(--muted);font-size:11px}
-.custom-speed-box{padding:12px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface-2);margin:8px 0 12px}
-.custom-speed-box[hidden]{display:none!important}
 .tag-editor{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:44px;padding:5px 7px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
 .tag-editor:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
 .tag-chip{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:4px 7px 4px 9px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface-3);color:var(--ink);font-size:12px}
@@ -235,6 +233,23 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 .splitter-choice input:checked:after{content:"✓";color:#fff;font-size:12px;font-weight:800;line-height:1}
 .splitter-choice input:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
 @media(max-width:520px){.splitter-choice-group{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.plan-choice-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 11px}
+.plan-choice{
+  position:relative;display:flex;align-items:center;gap:9px;min-height:44px;
+  padding:9px 10px;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface-2);color:var(--ink-2);font-weight:650;cursor:pointer;
+}
+.plan-choice:has(input[type=radio]:checked){border-color:var(--accent);background:var(--accent-soft);color:#fff;box-shadow:0 0 0 1px var(--accent)}
+.plan-choice>input[type=radio]{
+  appearance:none;width:17px;height:17px;flex:0 0 17px;margin:0;
+  display:grid;place-content:center;border:1px solid var(--muted);border-radius:4px;background:var(--bg-2)
+}
+.plan-choice>input[type=radio]:checked{border-color:var(--accent);background:var(--accent)}
+.plan-choice>input[type=radio]:checked:after{content:"✓";color:#fff;font-size:12px;font-weight:800;line-height:1}
+.plan-choice>input[type=radio]:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
+.plan-custom-entry{min-width:0;flex:1}
+.plan-custom-entry input{width:100%;min-height:34px;padding:6px 8px}
+@media(max-width:520px){.plan-choice-group{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .subtabs{
   display:inline-flex;gap:4px;background:var(--surface-3);border-radius:12px;padding:4px;margin-bottom:12px;
@@ -4228,27 +4243,31 @@ function openForm(table, id, initialValues={}){
       }
       if(f.k==='plan'){
         const customPlanValue = '__custom_plan__';
-        const planOptions = opts.filter(o=>String(o).toLowerCase()!=='custom');
+        const configuredPlans = opts.filter(o=>String(o).toLowerCase()!=='custom');
+        const planOptions = [...new Set(['25 Mbps','50 Mbps',...configuredPlans])];
         const hasPlanOption = planOptions.some(o=>String(o)===String(val));
         const selectedPlan = hasPlanOption ? val : (val ? customPlanValue : '');
         const customSpeed = !hasPlanOption && val
           ? (String(val).match(/^(\d+(?:\.\d+)?)\s*mbps$/i)||[])[1] || ''
           : '';
-        input = `<select name="${f.k}" ${f.req?'required':''}>
-          <option value="">— select —</option>
-          ${planOptions.map(o=>`<option value="${esc(o)}" ${String(selectedPlan)===String(o)?'selected':''}>${esc(o)}</option>`).join('')}
-          <option value="${customPlanValue}" ${selectedPlan===customPlanValue?'selected':''}>Custom</option>
-        </select>`;
-        const showCustomSpeed = selectedPlan===customPlanValue;
-        return `<div class="field"><span>${esc(f.l)}${f.req?' *':''}</span>${input}
-          <div class="custom-speed-box" data-custom-speed-field ${showCustomSpeed?'':'hidden'}>
-            <label class="field" style="margin:0">
-              <span>Custom speed (Mbps)</span>
+        const planChoices = `<div class="plan-choice-group" role="radiogroup" aria-label="${esc(f.l)}">
+          ${planOptions.map(option=>`<label class="plan-choice">
+            <input type="radio" name="${f.k}" value="${esc(option)}" ${String(selectedPlan)===String(option)?'checked':''} ${f.req?'required':''}>
+            <span>${esc(option)}</span>
+          </label>`).join('')}
+          <label class="plan-choice">
+            <input type="radio" name="${f.k}" value="${customPlanValue}" ${selectedPlan===customPlanValue?'checked':''} ${f.req?'required':''}>
+            <span>Custom</span>
+            <span class="plan-custom-entry" data-custom-speed-field>
               <input name="customMbps" type="number" min="0.01" step="any" inputmode="decimal"
-                placeholder="Enter any Mbps, e.g. 75" value="${esc(customSpeed)}" ${showCustomSpeed?'required':''}>
-            </label>
-            <small class="field-hint">Enter the download speed you want for this client.</small>
-          </div>
+                aria-label="Custom speed in Mbps" placeholder="Enter Mbps"
+                value="${esc(customSpeed)}" ${selectedPlan===customPlanValue?'required':''}>
+            </span>
+          </label>
+        </div>
+        `;
+        return `<div class="field"><span>${esc(f.l)}${f.req?' *':''}</span>
+          ${planChoices}
           ${f.hint?`<small class="field-hint">${esc(f.hint)}</small>`:''}</div>`;
       }
       input = `<select name="${f.k}" ${f.req?'required':''}>
@@ -5163,7 +5182,6 @@ document.addEventListener('change', e=>{
     const customSpeedField = e.target.form.querySelector('[data-custom-speed-field]');
     if(customSpeedField){
       const isCustom = e.target.value==='__custom_plan__';
-      customSpeedField.hidden = !isCustom;
       const speedInput = customSpeedField.querySelector('input');
       speedInput.required = isCustom;
       if(isCustom) speedInput.focus({preventScroll:false});
@@ -5175,9 +5193,12 @@ document.addEventListener('change', e=>{
     if(rate && standardRate!==null) rate.value = standardRate;
   }
   if(e.target.name==='rate' && e.target.form?.id==='modalForm'){
-    const plan = e.target.form.elements.namedItem('plan');
     const matchingPlan = planForRate(Number(e.target.value));
-    if(plan && matchingPlan!=='Unspecified') plan.value = matchingPlan;
+    if(matchingPlan!=='Unspecified'){
+      const plan = [...e.target.form.querySelectorAll('input[name="plan"]')]
+        .find(option=>option.value===matchingPlan);
+      if(plan) plan.checked = true;
+    }
   }
 });
 
