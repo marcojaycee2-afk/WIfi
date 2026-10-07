@@ -1192,12 +1192,17 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
   .topbar .btn{min-width:44px;min-height:44px;padding:7px 9px;font-size:12px}
   #btnLogout,#btnBackup,#btnRestore{display:none}
   #btnMenu{
-    position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));
+    position:fixed;top:50%;right:14px;bottom:auto;
     z-index:90;display:inline-flex;width:54px;height:54px;min-width:54px;
     padding:0;border:1px solid #60a5fa;border-radius:50%;
     background:var(--accent);color:#fff;font-size:23px;
     box-shadow:0 5px 18px rgba(0,0,0,.48),0 0 0 3px rgba(59,130,246,.18);
+    transform:translateY(-50%);
+    transition:right .22s ease,transform .22s ease,opacity .22s ease;
+    touch-action:none;user-select:none;-webkit-user-select:none;
   }
+  #btnMenu.menu-docked{right:-27px;opacity:.76}
+  #btnMenu.menu-docked:hover{opacity:1}
   #btnMenu:hover{background:var(--accent-hover);border-color:#93c5fd}
   .tabs{
     display:none;top:calc(64px + env(safe-area-inset-top));
@@ -4667,6 +4672,16 @@ document.addEventListener('click', async e=>{
 
   const menuToggle = e.target.closest('#btnMenu');
   if(menuToggle){
+    if(menuToggle._suppressClick){
+      menuToggle._suppressClick = false;
+      return;
+    }
+    if(menuToggle.classList.contains('menu-docked')){
+      menuToggle.classList.remove('menu-docked');
+      menuToggle.setAttribute('aria-label','Open menu');
+      menuToggle.title='Open menu';
+      return;
+    }
     const menu = document.getElementById('tabs');
     const isOpen = menu.classList.toggle('mobile-open');
     menuToggle.textContent = isOpen ? '×' : '☰';
@@ -4829,6 +4844,34 @@ document.addEventListener('click', async e=>{
       lat:Number(center.lat).toFixed(6),
       lng:Number(center.lng).toFixed(6)
     });
+
+    const floatingMenuButton = document.getElementById('btnMenu');
+    let menuHoldTimer = null;
+    let menuHoldTriggered = false;
+    floatingMenuButton.addEventListener('pointerdown', event=>{
+      if(event.pointerType==='mouse' && event.button!==0) return;
+      clearTimeout(menuHoldTimer);
+      menuHoldTriggered = false;
+      menuHoldTimer = setTimeout(()=>{
+        if(floatingMenuButton.getAttribute('aria-expanded')==='true') return;
+        menuHoldTriggered = true;
+        floatingMenuButton.classList.toggle('menu-docked');
+        const docked = floatingMenuButton.classList.contains('menu-docked');
+        floatingMenuButton.setAttribute('aria-label',docked?'Show menu button':'Open menu');
+        floatingMenuButton.title = docked ? 'Tap to show menu button' : 'Open menu';
+      },550);
+    });
+    const finishMenuHold = ()=>{
+      clearTimeout(menuHoldTimer);
+      menuHoldTimer = null;
+      if(menuHoldTriggered){
+        floatingMenuButton._suppressClick = true;
+        menuHoldTriggered = false;
+      }
+    };
+    floatingMenuButton.addEventListener('pointerup',finishMenuHold);
+    floatingMenuButton.addEventListener('pointercancel',finishMenuHold);
+    floatingMenuButton.addEventListener('pointerleave',finishMenuHold);
     return;
   }
   if(a==='placeNapBoxAtMap' || a==='placeClientAtMap'){
