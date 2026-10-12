@@ -2421,7 +2421,7 @@ function pageClients(){
   const q = state.search.toLowerCase();
   const list = DB.clients.filter(c=>
     !q || [c.id,c.name,c.barangay,c.contact,c.pppoe].join(' ').toLowerCase().includes(q)
-  );
+  ).sort((a,b)=>String(a.id||'').localeCompare(String(b.id||''), undefined, {numeric:true, sensitivity:'base'}));
   const rows = list.map(c=>{
     const bal = billingRows().filter(r=>r.clientId===c.id && r.balance>0)
       .reduce((s,r)=>s+r.balance,0);
