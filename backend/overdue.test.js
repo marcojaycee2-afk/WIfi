@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildOverdueSummary, localDateInTimeZone } = require('./overdue');
 
-test('summarizes unpaid invoices due today or earlier, excluding paid and future-due invoices', () => {
+test('summarizes unpaid invoices and monthly rollover, excluding paid and future-due invoices', () => {
   const state = {
     clients: [{ id: 'C-1', name: 'A Client' }, { id: 'C-2', name: 'B Client' }],
     billing: [
@@ -18,14 +18,30 @@ test('summarizes unpaid invoices due today or earlier, excluding paid and future
   };
 
   const summary = buildOverdueSummary(state, '2026-03-15');
-  assert.equal(summary.overdueInvoices, 2);
+  assert.equal(summary.overdueInvoices, 3);
   assert.equal(summary.overdueClients, 1);
-  assert.equal(summary.totalBalance, 1250);
-  assert.match(summary.body, /A Client — ₱1,250\.00/);
-  assert.equal(summary.notification.title,'1 unpaid client · ₱1,250.00 due');
-  assert.match(summary.notification.body,/A Client — ₱1,250\.00/);
+  assert.equal(summary.totalBalance, 1750);
+  assert.match(summary.body, /A Client — ₱1,750\.00/);
+  assert.equal(summary.notification.title,'1 unpaid client · ₱1,750.00 due');
+  assert.match(summary.notification.body,/A Client — ₱1,750\.00/);
+  assert.equal(state.billing.length,4,'building a summary does not mutate the saved state');
 });
 
+test('reminders use the same anniversary balances and current client names as billing',()=>{
+  const state = {
+    clients:[{id:'C-1',name:'Renamed Client',status:'Active'}],
+    billing:[{clientId:'C-1',month:'2026-10',dueDate:'2026-10-20',amountDue:800}],
+    payments:[]
+  };
+  for(const [today,total] of [
+    ['2026-10-20',800],['2026-11-19',800],
+    ['2026-11-20',1600],['2026-12-19',1600],['2026-12-20',2400]
+  ]){
+    const summary = buildOverdueSummary(state,today);
+    assert.equal(summary.totalBalance,total);
+    assert.match(summary.body,/Renamed Client/);
+  }
+});
 test('returns no notification when there are no overdue balances', () => {
   const state = {
     clients: [{ id: 'C-1', name: 'Client' }],

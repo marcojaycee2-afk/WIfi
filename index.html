@@ -1378,6 +1378,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 <div id="toast"></div>
 <input type="file" id="fileInput" accept="application/json" hidden>
 
+<script src="/billing.js"></script>
 <script>
 /* =========================================================================
    ISP MANAGER — dark mode + upgraded physical NAP box visualizer + receipts
@@ -1818,6 +1819,7 @@ function openDatabase(){
 }
 
 function save(){
+  NapboxBilling.synchronizeInvoices(DB, todayISO());
   const revision = ++saveRevision;
   const snapshot = JSON.parse(JSON.stringify(DB));
   let localSaved = false;
@@ -2191,21 +2193,16 @@ async function init(){
 /* ------------------------------ computed ------------------------------ */
 function billingRows(){
   const today = todayISO();
+  if(NapboxBilling.synchronizeInvoices(DB, today)) save();
   return DB.billing.map(b=>{
     const client = DB.clients.find(c=>c.id===b.clientId);
     const paid = DB.payments
       .filter(p=>p.clientId===b.clientId && p.month===b.month)
       .reduce((s,p)=>s+num(p.amount),0);
     const amountDue = num(b.amountDue);
-    const balance = amountDue - paid;
-    const daysOverdue = balance > 0 ? Math.max(0, daysAgo(b.dueDate, today)) : 0;
-    const dueAsOfToday = balance > 0 && /^\d{4}-\d{2}-\d{2}$/.test(b.dueDate) && b.dueDate<=today;
+    const balance = Math.round((amountDue - paid)*100)/100;
+    const {daysOverdue, dueAsOfToday, aging} = NapboxBilling.invoiceAging(b.dueDate, balance, today);
     const status = balance <= 0 ? 'Paid' : (paid === 0 ? 'Unpaid' : 'Partial');
-    const aging = balance <= 0 ? 'Paid'
-      : daysOverdue === 0 ? 'Current'
-      : daysOverdue <= 7 ? '1-7 days'
-      : daysOverdue <= 15 ? '8-15 days'
-      : '16+ days';
     return {
       ...b, clientName: client ? client.name : '—',
       clientStatus: client ? client.status : '—',
@@ -2370,7 +2367,7 @@ function pageDashboard(){
       <tbody>${topUnpaid.map(u=>`<tr>
         <td>${esc(u.name)}<div class="tiny muted">${esc(u.id)}</div></td>
         <td class="right"><strong>${peso(u.bal)}</strong></td>
-        <td class="right"><span class="badge ${agingClass(u.oldest>15?'16+ days':u.oldest>7?'8-15 days':u.oldest>0?'1-7 days':'Current')}">${u.oldest}d</span></td>
+        <td class="right"><span class="badge ${agingClass(u.oldest>15?'16-30 days':u.oldest>7?'8-15 days':u.oldest>0?'1-7 days':'Current')}">${u.oldest}d</span></td>
       </tr>`).join('')}</tbody>
     </table></div>` : `<div class="empty"><div class="big">🎉</div>No outstanding balances.</div>`}
   </div>
@@ -2463,7 +2460,13 @@ function pageClients(){
 /* ------------------------------ billing ------------------------------ */
 function pageBilling(){
   const m = state.month;
-  const monthRows = billingRows().filter(r=>r.month===m);
+  const allRows = billingRows();
+  const monthRows = allRows.filter(r=>r.month===m);
+  const remainingByClient = new Map();
+  allRows.forEach(row=>{
+    remainingByClient.set(row.clientId,
+      (remainingByClient.get(row.clientId)||0)+Math.max(0,row.balance));
+  });
   const q = state.search.toLowerCase();
   const rows = monthRows.filter(r=>
     !q || [r.clientName,r.clientId].join(' ').toLowerCase().includes(q)
@@ -2482,9 +2485,10 @@ function pageBilling(){
       <td class="right">${peso(r.amountDue)}</td>
       <td class="right">${peso(r.paid)}</td>
       <td class="right"><strong>${peso(Math.max(0,r.balance))}</strong></td>
+      <td class="right"><strong>${peso(remainingByClient.get(r.clientId)||0)}</strong></td>
       <td><span class="badge ${r.dueAsOfToday?'b-red':stCls}">${r.status}</span></td>
       <td><span class="badge ${r.dueAsOfToday?'b-red':agingClass(r.aging)}">${r.aging}</span></td>
-      <td class="right">${r.daysOverdue>0?`<span class="small muted">${r.daysOverdue}d</span>`:''}</td>
+      <td class="right"><span class="small muted">${r.daysOverdue}d</span></td>
       <td class="right"><div class="row-actions">
         ${r.balance>0?`<button class="btn sm primary" data-act="payInvoice" data-id="${esc(r.id)}">Record Payment</button>`:''}
         <button class="btn sm" data-act="edit" data-table="billing" data-id="${esc(r.id)}">Edit</button>
@@ -2511,11 +2515,12 @@ function pageBilling(){
   <div class="searchbar">
     <input type="search" id="searchBox" placeholder="Find client by name or ID…" value="${esc(state.search)}">
   </div>
+  <p class="small muted">Unpaid accounts receive another monthly invoice on the same due day (or the last day of a shorter month). Remaining Payment includes all outstanding invoices for that client; payments are recorded against the selected invoice.</p>
   <div class="card">
     <div class="card-head"><h2>${monthLabel(m)}</h2>
     <span class="small muted">${q?`${rows.length} of ${monthRows.length}`:monthRows.length} invoice(s)</span></div>
     ${rows.length ? `<div class="tw"><table>
-      <thead><tr><th>Client</th><th>Due</th><th class="right">Amount</th><th class="right">Paid</th><th class="right">Balance</th><th>Status</th><th>Aging</th><th></th><th></th></tr></thead>
+      <thead><tr><th>Client</th><th>Due</th><th class="right">Amount</th><th class="right">Paid</th><th class="right">Invoice Balance</th><th class="right">Remaining Payment</th><th>Status</th><th>Aging</th><th class="right">Days Overdue</th><th></th></tr></thead>
       <tbody>${body}</tbody>
     </table></div>` : `<div class="empty"><div class="big">🧾</div>
       No invoices for ${monthLabel(m)}.<br><br>
@@ -2540,7 +2545,8 @@ function openInvoicePayment(invoiceId){
       <button class="btn sm" type="button" data-act="closeModal" aria-label="Close">✕</button>
     </div>
     <p class="muted">${esc(current.clientName)} <span class="tiny">(${esc(current.clientId)})</span><br>
-      ${esc(monthLabel(invoice.month))} · Balance ${peso(balance)}</p>
+      ${esc(monthLabel(invoice.month))} · Invoice balance ${peso(balance)}<br>
+      <span class="small">This payment applies to this invoice only. Other unpaid months remain outstanding.</span></p>
     <form id="invoicePaymentForm">
       <label class="field"><span>Payment Date</span>
         <input name="date" type="date" value="${todayISO()}" required>
@@ -4333,6 +4339,10 @@ function openForm(table, id, initialValues={}){
     }
 
     const old = isNew ? null : {...row};
+    if(!isNew && DB[table].some(record=>
+      String(record.id)===String(obj.id) && String(record.id)!==String(id))){
+      toast('ID already exists'); return;
+    }
     if(table==='napBoxes' && old && obj.totalPorts<Number(old.totalPorts)){
       const occupiedPort = DB.napPorts.find(port=>
         port.napId===old.id && Number(port.port)>obj.totalPorts &&
@@ -4381,10 +4391,13 @@ function openForm(table, id, initialValues={}){
       const idx = DB[table].findIndex(r=>String(r.id)===String(id));
       // preserve createdAt
       if(table==='payments' && row.createdAt && !obj.createdAt) obj.createdAt = row.createdAt;
-      DB[table][idx] = obj;
+      DB[table][idx] = {...row, ...obj};
     }
 
-    if(table==='clients') syncClientPort(obj, old);
+    if(table==='clients'){
+      if(old) NapboxBilling.renameClientReferences(DB, old.id, obj.id);
+      syncClientPort(obj, old);
+    }
     if(table==='napBoxes') ensurePorts(obj);
 
     const persisted = await save();
@@ -4758,7 +4771,8 @@ function updateCurrentGeneratedInvoiceDueDates(){
   const month = ym(new Date());
   let updated = 0;
   (DB.billing||[]).forEach(invoice=>{
-    if(invoice.month!==month || invoice.id!==`INV-${month}-${invoice.clientId}`) return;
+    if(invoice.month!==month || invoice.id!==`INV-${month}-${invoice.clientId}` ||
+       invoice.recurringDueDay) return;
     const client = (DB.clients||[]).find(item=>item.id===invoice.clientId);
     if(!client) return;
     const dueDate = generatedInvoiceDueDate(client, month);
@@ -4784,7 +4798,7 @@ async function generateInvoices(month){
     const invoiceId = `INV-${month}-${c.id}`;
     const existing = DB.billing.find(b=>b.clientId===c.id && b.month===month);
     if(existing){
-      if(existing.id===invoiceId && existing.dueDate!==dueDate){
+      if(existing.id===invoiceId && !existing.recurringDueDay && existing.dueDate!==dueDate){
         existing.dueDate = dueDate;
         updated++;
       }
@@ -4809,6 +4823,14 @@ function deleteRecord(table, id){
     return;
   }
   if(!confirm(`Delete ${id}? This cannot be undone.`)) return;
+  if(table==='billing'){
+    const invoice = DB.billing.find(record=>String(record.id)===String(id));
+    DB.billingExclusions = DB.billingExclusions || [];
+    if(!DB.billingExclusions.some(record=>
+      record.clientId===invoice.clientId && record.month===invoice.month)){
+      DB.billingExclusions.push({clientId:invoice.clientId,month:invoice.month});
+    }
+  }
   DB[table] = DB[table].filter(record=>String(record.id)!==String(id));
   if(table==='clients'){
     DB.napPorts.forEach(port=>{
@@ -4839,7 +4861,7 @@ window.addEventListener('storage', e=>{
     }
     DB = updated;
     document.getElementById('subBrand').textContent = DB.settings.business || 'My ISP';
-    if(state.tab==='dashboard') render();
+    if(state.tab==='dashboard' || state.tab==='billing') render();
   }catch(error){
     console.warn('Could not apply a cross-tab data update', error);
   }

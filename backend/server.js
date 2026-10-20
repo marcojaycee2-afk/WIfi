@@ -8,6 +8,7 @@ const webpush = require('web-push');
 const cron = require('node-cron');
 const { createAuth } = require('./auth');
 const { buildOverdueSummary, localDateInTimeZone } = require('./overdue');
+const { synchronizeInvoices } = require('../billing');
 
 const app = express();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -69,6 +70,10 @@ app.get('/api/config', auth.requireAuth, (req, res) => {
   const token = process.env.MAPBOX_ACCESS_TOKEN || '';
   res.json({ mapboxAccessToken: token.startsWith('pk.') ? token : '' });
 });
+app.get('/billing.js', auth.requireAuth, (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, '..', 'billing.js'));
+});
 
 app.get('/api/notifications/config', auth.requireAuth, (req, res) => {
   res.json({ enabled: pushEnabled, publicKey: pushEnabled ? vapidPublicKey : '' });
@@ -118,12 +123,32 @@ app.get('/service-worker.js', auth.requireAuth, (req, res) => {
 
 app.get('/api/state', auth.requireAuth, async (req, res, next) => {
   try {
-    const result = await pool.query('SELECT data FROM app_state WHERE id = 1');
-    res.json({ state: result.rows[0]?.data ?? null });
+    const state = await loadBillingState();
+    res.json({ state });
   } catch (error) {
     next(error);
   }
 });
+
+async function loadBillingState(){
+  const connection = await pool.connect();
+  try {
+    await connection.query('BEGIN');
+    const result = await connection.query('SELECT data FROM app_state WHERE id = 1 FOR UPDATE');
+    const state = result.rows[0]?.data ?? null;
+    if(state && synchronizeInvoices(state, localDateInTimeZone(new Date(), timeZone))){
+      await connection.query('UPDATE app_state SET data = $1::jsonb, updated_at = now() WHERE id = 1',
+        [JSON.stringify(state)]);
+    }
+    await connection.query('COMMIT');
+    return state;
+  } catch(error) {
+    await connection.query('ROLLBACK');
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
 
 app.put('/api/state', auth.requireAuth, async (req, res, next) => {
   const { state } = req.body || {};
@@ -179,8 +204,7 @@ async function sendDailyOverdueNotifications(){
   notificationJobRunning = true;
   try {
     const today = localDateInTimeZone(new Date(), timeZone);
-    const stateResult = await pool.query('SELECT data FROM app_state WHERE id = 1');
-    const report = buildOverdueSummary(stateResult.rows[0]?.data, today);
+    const report = buildOverdueSummary(await loadBillingState(), today);
     if (!report) return;
 
     const subscriptions = await pool.query(

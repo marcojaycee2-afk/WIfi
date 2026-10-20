@@ -22,6 +22,16 @@ New clients default to ₱800/month for 25 Mbps and ₱1,000/month for 50 Mbps. 
 
 To connect a customer to a NAP port, first add a NAP box with its port count under **NAP Boxes**, then use **Connect** beside that customer on the **Clients** page. The connection dialog lists available ports and prevents assigning a port already in use.
 
+## Billing balances and aging
+
+Unpaid accounts automatically receive the next monthly invoice on the same calendar due day, not after a fixed 31 days. For example, an unpaid ₱800 invoice due October 20, 2026 becomes ₱1,600 outstanding on November 20 and ₱2,400 on December 20. Short months use their last day, then return to the original due day (January 31 → February 28 → March 31). Disconnected clients do not receive automatic invoices. Existing invoices for the same client and month are reused, never duplicated. Missed months are filled when the saved data is opened or checked for overdue reminders.
+
+The **Billing** table shows each month's **Invoice Balance** separately from **Remaining Payment**, which totals all outstanding invoices for that client, including other months. Record payments against the appropriate month's invoice; partial payments reduce the remaining total. Settling all outstanding invoices before the next due date stops unpaid-account rollover. Payments dated on a new due date are applied after that day's new invoice is due. Undated legacy payments are treated as already paid.
+
+Deleting an invoice excludes that client/month from automatic rollover so it is not silently recreated. Later months can still accrue if the account remains unpaid. Use **Generate** or add an invoice manually to restore a deleted month.
+
+Aging is measured in calendar days from each invoice's due date: Current (0 overdue days), 1–7, 8–15, 16–30, 31–60, 61–90, and 91+ days. The exact day count appears beside the range. Paid invoices show Paid and 0 overdue days. Client name changes appear immediately in all existing billings and receipts; changing a client ID also keeps related invoices and payments linked.
+
 The included Compose setup publishes the app only on localhost; add TLS before making it reachable by other devices or the public internet.
 
 The map works without a token using OpenStreetMap tiles. If `MAPBOX_ACCESS_TOKEN` is set on the app service to a Mapbox public token beginning with `pk.`, the app uses Mapbox instead. Mapbox tokens are delivered to the browser, so allow your deployed site's domain in the token settings; never use a secret `sk.` token in the browser app.

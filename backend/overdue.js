@@ -1,4 +1,5 @@
 const { randomInt } = require('node:crypto');
+const { synchronizeInvoices } = require('../billing');
 
 function localDateInTimeZone(date=new Date(), timeZone='Asia/Manila'){
   const parts = new Intl.DateTimeFormat('en-CA',{
@@ -16,6 +17,8 @@ function buildOverdueSummary(state, today, chooseRandomIndex=randomInt){
      !Array.isArray(state.payments) || !Array.isArray(state.clients)){
     throw new TypeError('Application state is missing billing, payments, or clients');
   }
+  state = {...state, billing:state.billing.slice()};
+  synchronizeInvoices(state, today);
 
   const clientById = new Map(state.clients.map(client=>[client.id,client]));
   const balances = new Map();
