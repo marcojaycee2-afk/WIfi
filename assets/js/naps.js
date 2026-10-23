@@ -788,10 +788,15 @@ function napSplitterView(){
   const portsPerBank = splitMatch ? Number(splitMatch[1]) : Number(splitRatio) || 8;
   const bankCount = splitMatch ? 2 : 1;
   const usedPct = s.total ? Math.round((s.used / s.total) * 100) : 0;
+  const boxStatus = box.status || 'Active';
+  const boxStatusClass = boxStatus === 'Active' ? 'active'
+    : boxStatus === 'Under Repair' ? 'repair'
+      : boxStatus === 'Planned' ? 'planned'
+        : 'inactive';
 
   const selector = `
-    <div class="card mb-10">
-      <div class="flex">
+    <div class="card napbox-toolbar">
+        <div class="flex napbox-toolbar-row">
         <label class="field" style="flex:1 1 280px;margin-bottom:0">
           <span>Select NAP Box</span>
           <select id="napPicker">
@@ -803,7 +808,7 @@ function napSplitterView(){
             }).join('')}
           </select>
         </label>
-        <div class="napbox-mini" style="min-width:150px;align-self:end">
+        <div class="napbox-mini">
           <div class="label">SPLITTER CONFIGURATION</div>
           <div class="value">${splitMatch ? `2 × 1:${portsPerBank}` : `1 × 1:${portsPerBank}`}</div>
           <div class="sub">${s.total} customer ports · ${s.free} available</div>
@@ -845,20 +850,20 @@ function napSplitterView(){
       : p.status.toUpperCase();
 
     return `
-      <div class="port-cell ${status}"
+      <button type="button" class="port-cell ${status}"
            data-act="openPort"
            data-napid="${esc(box.id)}"
            data-port="${p.port}"
            title="Port ${p.port} — ${label}"
            aria-label="Port ${p.port}, ${stateText}">
         <span class="state-led" aria-hidden="true"></span>
-        <div class="num">PORT ${String(p.port).padStart(2,'0')}</div>
-        <div class="connector"></div>
-        <div class="body"></div>
+        <span class="num">PORT ${String(p.port).padStart(2,'0')}</span>
+        <span class="connector"></span>
+        <span class="body"></span>
         ${fiberMark}
-        <div class="port-name">${p.status==='Used' ? `FIBER · ${esc(fiberName)}` : esc(stateText)}</div>
+        <span class="port-name">${p.status==='Used' ? `FIBER · ${esc(fiberName)}` : esc(stateText)}</span>
         ${tick}
-      </div>`;
+      </button>`;
   };
 
   const banks = Array.from({length:bankCount},(_,index)=>{
@@ -881,10 +886,17 @@ function napSplitterView(){
       </div>`;
   }).join('');
 
-  const splitterOutputs = Array.from({length:8},(_,i)=>`
-    <div class="splitter-out">
-      <span class="n">${i+1}</span>
-      <div class="adapter"></div>
+  const splitterOutputs = Array.from({length:bankCount},(_,splitterIndex)=>`
+    <div class="splitter-output-bank">
+      <div class="splitter-output-bank-label">SPLITTER ${splitterIndex+1} <span>1:${portsPerBank}</span></div>
+      <div class="splitter-output-row" aria-label="Splitter ${splitterIndex+1} output adapters">
+        ${Array.from({length:portsPerBank},(_,i)=>`
+          <div class="splitter-out">
+            <span class="n">${i+1}</span>
+            <div class="adapter"></div>
+          </div>
+        `).join('')}
+      </div>
     </div>
   `).join('');
 
@@ -898,20 +910,28 @@ function napSplitterView(){
   return `
   ${selector}
 
-  <div class="card" style="padding:10px 14px">
-    <div class="flex small muted">
-      <strong class="text-ink">${esc(box.id)}</strong>
-      <span>${esc(box.label||'')}</span>
-      <span class="spacer"></span>
-      <span>${s.used}/${s.total} used · ${s.free} free</span>
+  <section class="card napbox-summary" aria-label="NAP box details">
+    <div class="napbox-summary-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect x="3.5" y="4" width="17" height="16" rx="3"></rect>
+        <path d="M8 8h8M8 12h8M8 16h3"></path>
+        <circle cx="17" cy="16" r="1" class="summary-dot"></circle>
+      </svg>
     </div>
-    <div class="tiny muted mt-4">
-      📍 ${esc(box.address||'')}${box.landmark?` · ${esc(box.landmark)}`:''}
-      ${hasCoordinates
-        ? ` · <button class="map-link" type="button" data-act="focusNapMap" data-id="${esc(box.id)}">map</button>`
-        : ''}
+    <div class="napbox-summary-copy">
+      <span class="napbox-eyebrow">Distribution point</span>
+      <strong>${esc(box.id)}${box.label ? ` <span>· ${esc(box.label)}</span>` : ''}</strong>
+      <small>${esc(box.address||'')}${box.landmark?` · ${esc(box.landmark)}`:''}</small>
     </div>
-  </div>
+    <div class="napbox-summary-capacity" aria-label="${s.used} of ${s.total} ports in use">
+      <div class="napbox-summary-count"><strong>${s.used}</strong><span>/ ${s.total} ports in use</span></div>
+      <div class="napbox-summary-track"><span style="width:${usedPct}%"></span></div>
+      <small>${s.free} available${s.faulty ? ` · ${s.faulty} faulty` : ''}</small>
+    </div>
+    ${hasCoordinates
+      ? `<div class="napbox-summary-actions"><button class="map-link" type="button" data-act="focusNapMap" data-id="${esc(box.id)}">View on map <span aria-hidden="true">↗</span></button></div>`
+      : ''}
+  </section>
 
   <div class="splitter-wrap">
     <div class="napbox" role="region" aria-label="${esc(box.id)} NAP box fiber layout">
@@ -922,15 +942,22 @@ function napSplitterView(){
       <div class="napbox-screw s4"></div>
 
       <div class="napbox-head">
-        <div class="brand">NAP BOX</div>
-        <div class="meta">FIBER DISTRIBUTION ENCLOSURE · ${esc(splitMatch ? `2 × 1:${portsPerBank}` : `1 × 1:${portsPerBank}`)}</div>
+        <div class="napbox-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M5 7.5h5.5v9H5zM13.5 4h5.5v6h-5.5zM13.5 14h5.5v6h-5.5zM10.5 12h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </div>
+        <div class="napbox-heading">
+          <div class="brand">NAP BOX</div>
+          <div class="meta">FIBER DISTRIBUTION ENCLOSURE <span>·</span> ${esc(splitMatch ? `2 × 1:${portsPerBank}` : `1 × 1:${portsPerBank}`)}</div>
+        </div>
         <span class="spacer"></span>
-        <span class="napbox-status"><span class="led"></span>${esc(box.status||'Active')}</span>
+        <span class="napbox-status ${boxStatusClass}"><span class="led"></span>${esc(boxStatus)}</span>
       </div>
 
       <div class="napbox-inner">
         <aside class="napbox-side-rail left" aria-label="Fiber management channel">
-          <div class="napbox-side-title">FIBER MANAGEMENT</div>
+          <div class="napbox-side-title">FIBER ROUTING</div>
           <div class="fiber-loops" aria-hidden="true">
             <span class="fiber-line"></span>
             <span class="fiber-line f2"></span>
@@ -939,36 +966,44 @@ function napSplitterView(){
             <span class="fiber-entry"></span>
             <span class="fiber-grommet"></span>
           </div>
+          <span class="fiber-rail-state"><i></i> IN</span>
         </aside>
 
         <section class="napbox-main">
           <div class="splitter-module">
-            <div class="splitter-module-title">
-              ${splitMatch ? `Dual PLC Splitter · 2 × 1:${portsPerBank}` : `PLC Splitter · 1 × 1:${portsPerBank}`}
+            <div class="splitter-module-head">
+              <div>
+                <div class="splitter-module-kicker">OPTICAL SPLITTER</div>
+                <div class="splitter-module-title">
+                  ${splitMatch ? `Dual PLC Splitter · 2 × 1:${portsPerBank}` : `PLC Splitter · 1 × 1:${portsPerBank}`}
+                </div>
+                <div class="splitter-module-sub">Incoming fiber · SC/UPC distribution</div>
+              </div>
+              <span class="splitter-module-spec">LOW LOSS</span>
             </div>
-            <div class="splitter-module-sub">
-              Fiber input / splitter tray · SC/UPC distribution · organized internal routing
-            </div>
-
-            <div class="splitter-module-specs">
-              <span class="splitter-module-spec">1260–1650 nm</span>
-              <span class="splitter-module-spec">SC/UPC</span>
-              <span class="splitter-module-spec">Low-loss path</span>
-              <span class="splitter-module-spec">${s.total} OUT</span>
-            </div>
-
             <div class="splitter-input" title="Incoming fiber"></div>
-            <div class="splitter-output-row" aria-label="Splitter output adapters">
-              ${splitterOutputs}
+            <div class="splitter-output-label">
+              <span>OUTPUT ADAPTERS</span>
+              <span>${s.total} customer connections</span>
             </div>
+            ${splitterOutputs}
           </div>
 
           <div class="customer-panel">
             <div class="customer-panel-head">
-              <strong>CUSTOMER OUTPUT PORTS</strong>
-              <span>SC/UPC adapters · numbered for field service</span>
+              <div>
+                <span class="panel-eyebrow">CUSTOMER CONNECTIONS</span>
+                <strong>Output ports</strong>
+              </div>
+              <span class="customer-panel-note">Select a port to manage its assignment</span>
               <span class="spacer"></span>
               <span class="port-count-badge">${s.used} / ${s.total} IN USE</span>
+            </div>
+            <div class="port-state-legend" aria-label="Port status legend">
+              <span><i class="legend-dot connected"></i>Connected</span>
+              <span><i class="legend-dot available"></i>Available</span>
+              <span><i class="legend-dot warning"></i>Reserved / suspended</span>
+              <span><i class="legend-dot faulty"></i>Faulty</span>
             </div>
             ${banks}
           </div>
@@ -997,11 +1032,11 @@ function napSplitterView(){
       </div>
 
       <div class="napbox-foot">
-        <span class="napbox-foot-note">Use the real enclosure layout as the visual model; click any customer port to manage its assignment.</span>
+        <span class="napbox-foot-note">Select any customer port to view or update its connection.</span>
         <span class="spacer"></span>
-        <span class="meter">USED <strong>${s.used}</strong></span>
-        <span class="meter">FREE <strong>${s.free}</strong></span>
-        ${s.faulty ? `<span class="meter">FAULTY <strong>${s.faulty}</strong></span>` : ''}
+        <span class="meter">AVAILABLE <strong>${s.free}</strong></span>
+        <span class="meter">CONNECTED <strong>${s.used}</strong></span>
+        ${s.faulty ? `<span class="meter faulty">FAULTY <strong>${s.faulty}</strong></span>` : ''}
       </div>
     </div>
   </div>
