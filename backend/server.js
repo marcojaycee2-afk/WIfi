@@ -8,7 +8,7 @@ const webpush = require('web-push');
 const cron = require('node-cron');
 const { createAuth } = require('./auth');
 const { buildOverdueSummary, localDateInTimeZone } = require('./overdue');
-const { synchronizeInvoices } = require('../billing');
+const { VersionConflictError, isValidState, parseBaseVersion, loadState, saveState } = require('./state-store');
 
 const app = express();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -74,6 +74,10 @@ app.get('/billing.js', auth.requireAuth, (req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, '..', 'billing.js'));
 });
+app.use('/assets', auth.requireAuth, express.static(path.join(__dirname, '..', 'assets'), {
+  index: false,
+  setHeaders: res => res.set('Cache-Control', 'no-cache')
+}), (req, res) => res.status(404).send('Not found'));
 
 app.get('/api/notifications/config', auth.requireAuth, (req, res) => {
   res.json({ enabled: pushEnabled, publicKey: pushEnabled ? vapidPublicKey : '' });
@@ -123,50 +127,30 @@ app.get('/service-worker.js', auth.requireAuth, (req, res) => {
 
 app.get('/api/state', auth.requireAuth, async (req, res, next) => {
   try {
-    const state = await loadBillingState();
-    res.json({ state });
+    res.set('Cache-Control', 'no-store');
+    res.json(await loadState(pool, localDateInTimeZone(new Date(), timeZone)));
   } catch (error) {
     next(error);
   }
 });
 
-async function loadBillingState(){
-  const connection = await pool.connect();
-  try {
-    await connection.query('BEGIN');
-    const result = await connection.query('SELECT data FROM app_state WHERE id = 1 FOR UPDATE');
-    const state = result.rows[0]?.data ?? null;
-    if(state && synchronizeInvoices(state, localDateInTimeZone(new Date(), timeZone))){
-      await connection.query('UPDATE app_state SET data = $1::jsonb, updated_at = now() WHERE id = 1',
-        [JSON.stringify(state)]);
-    }
-    await connection.query('COMMIT');
-    return state;
-  } catch(error) {
-    await connection.query('ROLLBACK');
-    throw error;
-  } finally {
-    connection.release();
-  }
-}
-
 app.put('/api/state', auth.requireAuth, async (req, res, next) => {
   const { state } = req.body || {};
-  if (!state || typeof state !== 'object' || Array.isArray(state) ||
-      !Array.isArray(state.clients) || !state.settings || typeof state.settings !== 'object') {
+  const baseVersion = parseBaseVersion(req.body?.baseVersion);
+  if (!isValidState(state)) {
     return res.status(400).json({ error: 'Invalid application state' });
+  }
+  if (baseVersion === undefined) {
+    return res.status(400).json({ error: 'Invalid baseVersion' });
   }
 
   try {
-    await pool.query(
-      `INSERT INTO app_state (id, data, updated_at)
-       VALUES (1, $1::jsonb, now())
-       ON CONFLICT (id) DO UPDATE
-       SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
-      [JSON.stringify(state)]
-    );
-    res.json({ saved: true });
+    const version = await saveState(pool, state, baseVersion);
+    res.json({ saved: true, version });
   } catch (error) {
+    if (error instanceof VersionConflictError) {
+      return res.status(409).json({ error: error.message, ...error.current });
+    }
     next(error);
   }
 });
@@ -204,7 +188,9 @@ async function sendDailyOverdueNotifications(){
   notificationJobRunning = true;
   try {
     const today = localDateInTimeZone(new Date(), timeZone);
-    const report = buildOverdueSummary(await loadBillingState(), today);
+    const { state } = await loadState(pool, today);
+    if (!state) return;
+    const report = buildOverdueSummary(state, today);
     if (!report) return;
 
     const subscriptions = await pool.query(

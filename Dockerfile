@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY index.html ./
 COPY billing.js ./
+COPY assets ./assets
 COPY login.html ./
 COPY service-worker.js ./
 COPY backend ./backend

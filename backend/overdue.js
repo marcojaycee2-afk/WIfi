@@ -1,5 +1,5 @@
 const { randomInt } = require('node:crypto');
-const { synchronizeInvoices } = require('../billing');
+const { synchronizeInvoices, invoicePaidTotals } = require('../billing');
 
 function localDateInTimeZone(date=new Date(), timeZone='Asia/Manila'){
   const parts = new Intl.DateTimeFormat('en-CA',{
@@ -21,12 +21,7 @@ function buildOverdueSummary(state, today, chooseRandomIndex=randomInt){
   synchronizeInvoices(state, today);
 
   const clientById = new Map(state.clients.map(client=>[client.id,client]));
-  const balances = new Map();
-  for(const payment of state.payments){
-    const key = `${payment.clientId}\u0000${payment.month}`;
-    const amount = Number(payment.amount||0);
-    if(Number.isFinite(amount)) balances.set(key,(balances.get(key)||0)+amount);
-  }
+  const paidTotals = invoicePaidTotals(state);
 
   const perClient = new Map();
   let overdueInvoices = 0;
@@ -36,7 +31,7 @@ function buildOverdueSummary(state, today, chooseRandomIndex=randomInt){
        invoice.dueDate>today) continue;
     const amountDue = Number(invoice.amountDue);
     if(!Number.isFinite(amountDue)) continue;
-    const paid = balances.get(`${invoice.clientId}\u0000${invoice.month}`)||0;
+    const paid = (paidTotals.get(invoice)||0)/100;
     const balance = Math.max(0,Math.round((amountDue-paid)*100)/100);
     if(balance<=0) continue;
     overdueInvoices++;

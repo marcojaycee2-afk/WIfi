@@ -68,11 +68,20 @@ function Get-ApplicationState($Config) {
 
 function Get-OverdueSummary($State) {
   $today = (Get-Date).ToString('yyyy-MM-dd')
-  $paymentsByInvoice = @{}
+  # Mirrors billing.js: payments with an invoiceId count only for that invoice; older payments
+  # without one count for the first invoice of the same client and month.
+  $paidByInvoiceId = @{}
+  $paidByClientMonth = @{}
   foreach ($payment in $State.payments) {
-    $key = "$($payment.clientId)|$($payment.month)"
-    if (-not $paymentsByInvoice.ContainsKey($key)) { $paymentsByInvoice[$key] = 0.0 }
-    $paymentsByInvoice[$key] += [double]$payment.amount
+    if ($payment.invoiceId) {
+      $key = [string]$payment.invoiceId
+      if (-not $paidByInvoiceId.ContainsKey($key)) { $paidByInvoiceId[$key] = 0.0 }
+      $paidByInvoiceId[$key] += [double]$payment.amount
+    } else {
+      $key = "$($payment.clientId)|$($payment.month)"
+      if (-not $paidByClientMonth.ContainsKey($key)) { $paidByClientMonth[$key] = 0.0 }
+      $paidByClientMonth[$key] += [double]$payment.amount
+    }
   }
 
   $clientsById = @{}
@@ -81,10 +90,15 @@ function Get-OverdueSummary($State) {
   $clientsWithDebt = @{}
   $overdueInvoices = 0
   $totalBalance = 0.0
+  $firstInvoiceForMonth = @{}
   foreach ($invoice in $State.billing) {
-    if ($invoice.dueDate -notmatch '^\d{4}-\d{2}-\d{2}$' -or $invoice.dueDate -gt $today) { continue }
     $key = "$($invoice.clientId)|$($invoice.month)"
-    $paid = if ($paymentsByInvoice.ContainsKey($key)) { $paymentsByInvoice[$key] } else { 0.0 }
+    $isFirstForMonth = -not $firstInvoiceForMonth.ContainsKey($key)
+    if ($isFirstForMonth) { $firstInvoiceForMonth[$key] = $true }
+    if ($invoice.dueDate -notmatch '^\d{4}-\d{2}-\d{2}$' -or $invoice.dueDate -gt $today) { continue }
+    $paid = 0.0
+    if ($paidByInvoiceId.ContainsKey([string]$invoice.id)) { $paid += $paidByInvoiceId[[string]$invoice.id] }
+    if ($isFirstForMonth -and $paidByClientMonth.ContainsKey($key)) { $paid += $paidByClientMonth[$key] }
     $balance = [Math]::Max(0, [Math]::Round(([double]$invoice.amountDue - $paid), 2))
     if ($balance -le 0) { continue }
 

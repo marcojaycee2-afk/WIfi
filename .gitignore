@@ -1,7 +1,5 @@
 node_modules/
 .env
 *.log
-README.md
 *.md
-README.md
-*.md
+!README.md

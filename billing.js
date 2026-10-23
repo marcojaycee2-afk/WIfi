@@ -27,6 +27,58 @@
     };
   }
 
+  function paymentAppliesTo(payment, invoice){
+    if(payment.invoiceId) return payment.invoiceId===invoice.id;
+    return payment.clientId===invoice.clientId && payment.month===invoice.month;
+  }
+
+  // Legacy payments only carry clientId+month; attach each to the first matching invoice
+  // so two invoices in the same month never both count the same payment.
+  function linkPaymentsToInvoices(state){
+    const invoices = state.billing || [];
+    const invoiceIds = new Set(invoices.map(invoice=>invoice.id));
+    let linked = 0;
+    for(const payment of state.payments || []){
+      if(payment.invoiceId && invoiceIds.has(payment.invoiceId)) continue;
+      const invoice = invoices.find(row=>row.clientId===payment.clientId && row.month===payment.month);
+      if(invoice){
+        payment.invoiceId = invoice.id;
+        linked++;
+      }
+    }
+    return linked;
+  }
+
+  // Returns a Map keyed by invoice object -> paid amount in cents.
+  function invoicePaidTotals(state, beforeDate=null){
+    const totals = new Map();
+    const invoices = state.billing || [];
+    const byId = new Map();
+    const byClientMonth = new Map();
+    for(const invoice of invoices){
+      if(invoice.id!==undefined && !byId.has(invoice.id)) byId.set(invoice.id,invoice);
+      const key = `${invoice.clientId}\u0000${invoice.month}`;
+      if(!byClientMonth.has(key)) byClientMonth.set(key,invoice);
+    }
+    for(const payment of state.payments || []){
+      if(beforeDate && payment.date && payment.date>=beforeDate) continue;
+      const invoice = payment.invoiceId
+        ? byId.get(payment.invoiceId)
+        : byClientMonth.get(`${payment.clientId}\u0000${payment.month}`);
+      if(!invoice) continue;
+      const amount = money(payment.amount);
+      if(Number.isFinite(amount)) totals.set(invoice,(totals.get(invoice)||0)+amount);
+    }
+    return totals;
+  }
+
+  function invoiceBalance(state, invoice, excludePaymentId=null){
+    const paid = (state.payments || []).reduce((total,payment)=>
+      payment.id!==excludePaymentId && paymentAppliesTo(payment,invoice)
+        ? total+money(payment.amount) : total, 0);
+    return (money(invoice.amountDue)-paid)/100;
+  }
+
   function synchronizeInvoices(state, today){
     if(!dateValue(today)) throw new TypeError('A valid billing reference date is required');
     const invoices = state.billing || [];
@@ -58,7 +110,7 @@
         const outstanding = clientInvoices.filter(invoice=>invoice.dueDate<nextDate)
           .reduce((total,invoice)=>{
             const paid = payments.filter(payment=>
-              payment.clientId===client.id && payment.month===invoice.month &&
+              paymentAppliesTo(payment,invoice) &&
               (!payment.date || payment.date<nextDate)
             ).reduce((sum,payment)=>sum+money(payment.amount),0);
             return total+Math.max(0,money(invoice.amountDue)-paid);
@@ -84,6 +136,7 @@
       for(const record of state[table] || []){
         if(record.clientId!==oldId) continue;
         if(table==='billing' && record.id===`INV-${record.month}-${oldId}`){
+          renameInvoiceReferences(state, record.id, `INV-${record.month}-${newId}`);
           record.id = `INV-${record.month}-${newId}`;
         }
         record.clientId = newId;
@@ -91,7 +144,24 @@
     }
   }
 
-  const api = {invoiceAging,synchronizeInvoices,renameClientReferences};
+  function renameInvoiceReferences(state, oldId, newId){
+    if(oldId===newId) return;
+    for(const payment of state.payments || []){
+      if(payment.invoiceId===oldId) payment.invoiceId = newId;
+    }
+  }
+
+  // Neutralises spreadsheet formulas (=, +, -, @, tab, CR) so exported CSVs are safe to open.
+  function csvCell(value){
+    let text = String(value ?? '');
+    if(/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g,'""')}"`;
+  }
+
+  const api = {
+    invoiceAging,synchronizeInvoices,renameClientReferences,renameInvoiceReferences,
+    paymentAppliesTo,linkPaymentsToInvoices,invoicePaidTotals,invoiceBalance,csvCell
+  };
   if(typeof module==='object' && module.exports) module.exports = api;
   else root.NapboxBilling = api;
 })(globalThis);

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const billing = require('../billing');
+const { frontend } = require('./frontend-harness');
 
 function fixture(dueDate='2026-10-20'){
   return {
@@ -164,22 +165,6 @@ test('aging ranges and exact days agree at every boundary',()=>{
   assert.equal(billing.invoiceAging('2026-12-21',800,'2026-12-20').dueAsOfToday,false);
   assert.equal(billing.invoiceAging('2026-02-30',800,'2026-12-20').dueAsOfToday,false);
 });
-
-function frontend(state){
-  const html = fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
-  const script = html.match(/<script>([\s\S]*?)<\/script>/)[1]
-    .replace(/\binit\(\);\s*$/,'')
-    .replace('const todayISO = () => iso(new Date());',"const todayISO = () => '2026-12-20';");
-  const context = vm.createContext({
-    NapboxBilling:billing, console, setTimeout, clearTimeout,
-    window:{addEventListener(){}},
-    document:{getElementById:()=>({addEventListener(){}}),addEventListener(){}}
-  });
-  vm.runInContext(script,context);
-  context.fixture = state;
-  vm.runInContext("DB = fixture; state.month = '2026-12'; save = ()=>true;",context);
-  return context;
-}
 
 test('existing billings and receipts resolve renamed clients without cached names',()=>{
   const state = fixture();

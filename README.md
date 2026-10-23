@@ -18,17 +18,25 @@ The admin username defaults to `telecomadmin`; you may override it with `ADMIN_U
 
 Sign-in uses an HTTP-only, same-site session cookie that expires after 8 hours. Login attempts are rate limited per client IP. Sign out from the dashboard using the **Sign out** button. Use HTTPS when hosting publicly; production cookies are marked Secure.
 
-New clients default to ₱800/month for 25 Mbps and ₱1,000/month for 50 Mbps. An exact ₱800 rate selects 25 Mbps and an exact ₱1,000 rate selects 50 Mbps. Rates below ₱800 and all other rates remain Unspecified for manual plan assignment; rates are always editable for discounts. The default roster contains the 68 customers transcribed from the supplied list, with continuous client IDs and no invented customers for the two missing count numbers. Existing saved customer data is not replaced automatically.
+New clients default to ₱800/month for 25 Mbps and ₱1,000/month for 50 Mbps. An exact ₱800 rate selects 25 Mbps and an exact ₱1,000 rate selects 50 Mbps. Rates below ₱800 and all other rates remain Unspecified for manual plan assignment; rates are always editable for discounts. A new installation starts empty; customer data lives only in PostgreSQL and in your backups, never in the source code.
 
 To connect a customer to a NAP port, first add a NAP box with its port count under **NAP Boxes**, then use **Connect** beside that customer on the **Clients** page. The connection dialog lists available ports and prevents assigning a port already in use.
+
+## Saving, multiple devices and backups
+
+All signed-in devices share one copy of the data in PostgreSQL. Every save carries the version it was based on; if another device saved first, the server rejects the stale save (HTTP 409) instead of overwriting newer work. The app then loads the latest data, tells you your last change was not saved, and keeps a copy of the unsaved data on that device (downloadable from the notice) so you can re-enter it.
+
+If the server is unreachable, changes are kept on the device (localStorage and IndexedDB) and the status shows *saved on this device*. On the next save or reload they are uploaded — but only if nobody else changed the data in the meantime; otherwise the server copy wins and the local copy is kept for download. If a save cannot be stored anywhere, the change is undone and an error is shown.
+
+**Restore** checks the backup file before anything is replaced and downloads a backup of the current data first. **Erase Everything** also downloads a backup before erasing.
 
 ## Billing balances and aging
 
 Unpaid accounts automatically receive the next monthly invoice on the same calendar due day, not after a fixed 31 days. For example, an unpaid ₱800 invoice due October 20, 2026 becomes ₱1,600 outstanding on November 20 and ₱2,400 on December 20. Short months use their last day, then return to the original due day (January 31 → February 28 → March 31). Disconnected clients do not receive automatic invoices. Existing invoices for the same client and month are reused, never duplicated. Missed months are filled when the saved data is opened or checked for overdue reminders.
 
-The **Billing** table shows each month's **Invoice Balance** separately from **Remaining Payment**, which totals all outstanding invoices for that client, including other months. Record payments against the appropriate month's invoice; partial payments reduce the remaining total. Settling all outstanding invoices before the next due date stops unpaid-account rollover. Payments dated on a new due date are applied after that day's new invoice is due. Undated legacy payments are treated as already paid.
+The **Billing** table shows each month's **Invoice Balance** separately from **Remaining Payment**, which totals all outstanding invoices for that client, including other months. Record payments against the appropriate month's invoice; partial payments reduce the remaining total. Each payment is linked to one specific invoice, so two invoices for the same client and month never both count the same payment. Payments must be greater than zero, cannot exceed the invoice balance, and need an existing invoice for that client and month. Each payment records who received it; the name is remembered per device. Settling all outstanding invoices before the next due date stops unpaid-account rollover. Payments dated on a new due date are applied after that day's new invoice is due. Undated legacy payments are treated as already paid.
 
-Deleting an invoice excludes that client/month from automatic rollover so it is not silently recreated. Later months can still accrue if the account remains unpaid. Use **Generate** or add an invoice manually to restore a deleted month.
+Deleting an invoice excludes that client/month from automatic rollover so it is not silently recreated. An invoice that has payments cannot be deleted until those payments are deleted. Later months can still accrue if the account remains unpaid. Use **Generate** or add an invoice manually to restore a deleted month.
 
 Aging is measured in calendar days from each invoice's due date: Current (0 overdue days), 1–7, 8–15, 16–30, 31–60, 61–90, and 91+ days. The exact day count appears beside the range. Paid invoices show Paid and 0 overdue days. Client name changes appear immediately in all existing billings and receipts; changing a client ID also keeps related invoices and payments linked.
 
@@ -36,7 +44,17 @@ The included Compose setup publishes the app only on localhost; add TLS before m
 
 The map works without a token using OpenStreetMap tiles. If `MAPBOX_ACCESS_TOKEN` is set on the app service to a Mapbox public token beginning with `pk.`, the app uses Mapbox instead. Mapbox tokens are delivered to the browser, so allow your deployed site's domain in the token settings; never use a secret `sk.` token in the browser app.
 
-The OpenStreetMap fallback requires an internet connection to `tile.openstreetmap.org` and includes OpenStreetMap attribution. Its 3D toggle is available only when Mapbox is configured.
+The OpenStreetMap fallback requires an internet connection to `tile.openstreetmap.org` and includes OpenStreetMap attribution. Its 3D toggle is available only when Mapbox is configured. The map libraries (Leaflet or Mapbox GL) are downloaded only when the map is opened, with Subresource Integrity checks.
+
+CSV exports neutralise cells that begin with `=`, `+`, `-` or `@` so they cannot run as spreadsheet formulas.
+
+## Project layout and tests
+
+- `index.html` – page shell; styles in `assets/app.css`, scripts in `assets/js/` (`core.js` storage/dialogs/state, `pages.js`, `naps.js` map and NAP views, `receipt.js`, `forms.js`, `events.js`). They are classic scripts sharing globals and must load in that order. `/assets` is served only to signed-in users.
+- `billing.js` – billing rules shared by the browser and the server.
+- `backend/` – Express server, `state-store.js` (versioned load/save), overdue notifications.
+
+Run `npm test`. The tests cover billing rules, the versioned state store, overdue summaries, and browser logic (payment validation, backup validation, save/conflict/offline handling) loaded into a fake DOM by `backend/frontend-harness.js`.
 ## Daily overdue-payment notifications
 
 The Settings page can enable a daily web-push reminder separately on each PC or phone. Notifications arrive even when the dashboard is closed. Push requires a supported browser and HTTPS (localhost works for local setup). The reminder randomly samples up to four clients with unpaid balances on invoices due today or earlier, shows how many additional clients are due, and links to the full website list; it runs at 8:00 AM in `Asia/Manila` by default.
